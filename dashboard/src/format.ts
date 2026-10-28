@@ -51,5 +51,9 @@ export const daysBetween = (first: string, last: string) => {
   return out;
 };
 
+export const utcDay = (unixSeconds: number) => new Date(unixSeconds * 1000).toISOString().slice(0, 10);
+
 export const usdc = (baseUnits: string | number | bigint) =>
   `$${(Number(baseUnits) / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+
+export const isLive = (e: { startTime: number; endTime: number }, now: number) => now >= e.startTime && now <= e.endTime;

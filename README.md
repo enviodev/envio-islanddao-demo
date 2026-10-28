@@ -5,7 +5,10 @@ behind [IslandDAO](https://islanddao.org) event check-ins, plus a live dashboard
 built on its GraphQL API.
 
 - `indexer/`: HyperIndex project (`ecosystem: svm`), scaffolded with `pnpx envio init svm`
-- `dashboard/`: Vite + React dashboard that polls the indexer every 5 seconds
+- `dashboard/`: Vite + React dashboard, branded IslandDAO × Envio, polling the indexer every 5 seconds. It has three views:
+  - **Overview** (`#overview`): the showcase for everyone. Live islander count, the island calendar, the latest check-ins, regulars, and a wall of every attendee
+  - **Organizers** (`#organizers`): KPIs, daily check-ins split into first-timers and returning, the registration funnel, the days-attended distribution, sessions and pass sales
+  - **My island** (`#me?wallet=…`): an attendee's island passport, with a stamp per day checked in, their leaderboard rank, islander number, longest streak and usual check-in time
 
 ## The program
 

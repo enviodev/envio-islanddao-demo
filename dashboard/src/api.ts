@@ -62,7 +62,57 @@ export const EVENTS_QUERY = /* GraphQL */ `
   }
 `;
 
-export type Dashboard = {
+const USER_FIELDS = "id displayName xHandle avatarUrl";
+
+// ---------- Overview: the showcase for everyone ----------
+
+export type Islander = { checkInCount: number; user: UserRef };
+
+export type OverviewData = {
+  _meta: { progressBlock: number; isReady: boolean }[];
+  Event_by_pk: {
+    id: string;
+    name: string;
+    location: string;
+    venue: string;
+    startTime: number;
+    endTime: number;
+    checkInCount: number;
+    uniqueAttendeeCount: number;
+    lastCheckInAt: number | null;
+  } | null;
+  EventDay: { day: string; checkIns: number; firstTimers: number }[];
+  recent: { id: string; timestamp: number; dayNumber: number; txSignature: string; user: UserRef }[];
+  regulars: (Islander & { checkIns: { day: string }[] })[];
+  islanders: Islander[];
+};
+
+export const OVERVIEW_QUERY = /* GraphQL */ `
+  query Overview($event: String!) {
+    _meta { progressBlock isReady }
+    Event_by_pk(id: $event) {
+      id name location venue startTime endTime checkInCount uniqueAttendeeCount lastCheckInAt
+    }
+    EventDay(where: { event_id: { _eq: $event } }, order_by: { day: asc }) { day checkIns firstTimers }
+    recent: CheckIn(where: { event_id: { _eq: $event } }, order_by: { timestamp: desc }, limit: 8) {
+      id timestamp dayNumber txSignature user { ${USER_FIELDS} }
+    }
+    regulars: Registration(
+      where: { event_id: { _eq: $event }, checkInCount: { _gt: 0 } }
+      order_by: [{ checkInCount: desc }, { firstCheckInAt: asc }]
+      limit: 8
+    ) { checkInCount user { ${USER_FIELDS} } checkIns { day } }
+    islanders: Registration(
+      where: { event_id: { _eq: $event }, checkInCount: { _gt: 0 } }
+      order_by: { firstCheckInAt: asc }
+      limit: 1000
+    ) { checkInCount user { ${USER_FIELDS} } }
+  }
+`;
+
+// ---------- Organizers: detailed analytics ----------
+
+export type OrganizerData = {
   _meta: { progressBlock: number; isReady: boolean }[];
   chain_metadata: { block_height: number }[];
   GlobalStats: {
@@ -105,10 +155,8 @@ export type Dashboard = {
   tiers: { name: string; dates: string; price: string; sold: number; maxSupply: string | null }[];
 };
 
-const USER_FIELDS = "id displayName xHandle avatarUrl";
-
-export const DASHBOARD_QUERY = /* GraphQL */ `
-  query Dashboard($event: String!) {
+export const ORGANIZER_QUERY = /* GraphQL */ `
+  query Organizer($event: String!) {
     _meta { progressBlock isReady }
     chain_metadata { block_height }
     GlobalStats { users profiles registrations checkIns events sessions passesSold passRevenue }
@@ -135,30 +183,47 @@ export const DASHBOARD_QUERY = /* GraphQL */ `
   }
 `;
 
-export type WalletLookup = {
-  User_by_pk: (UserRef & {
-    bio: string | null;
-    firstSeenAt: number;
-    registrations: {
-      id: string;
-      status: string;
-      registeredAt: number;
-      reviewedAt: number | null;
-      checkInCount: number;
-      event: { name: string };
-    }[];
-    checkIns: { id: string; timestamp: number; dayNumber: number; txSignature: string; event: { name: string } }[];
-  }) | null;
+// ---------- My island: one attendee ----------
+
+export type MyRegistration = {
+  id: string;
+  status: string;
+  registeredAt: number;
+  reviewedAt: number | null;
+  checkInCount: number;
+  firstCheckInAt: number | null;
+  event: {
+    id: string;
+    name: string;
+    location: string;
+    startTime: number;
+    endTime: number;
+    checkInCount: number;
+    uniqueAttendeeCount: number;
+    days: { day: string; checkIns: number }[];
+    /** Everyone who checked in, to rank this attendee against. */
+    attendees: { checkInCount: number; firstCheckInAt: number }[];
+  };
+  checkIns: { day: string; timestamp: number; txSignature: string }[];
 };
 
-export const WALLET_QUERY = /* GraphQL */ `
-  query Wallet($id: String!) {
+export type MyIslandData = {
+  User_by_pk: (UserRef & { bio: string | null; firstSeenAt: number; registrations: MyRegistration[] }) | null;
+};
+
+export const MY_ISLAND_QUERY = /* GraphQL */ `
+  query MyIsland($id: String!) {
     User_by_pk(id: $id) {
       ${USER_FIELDS} bio firstSeenAt
       registrations(order_by: { registeredAt: desc }) {
-        id status registeredAt reviewedAt checkInCount event { name }
+        id status registeredAt reviewedAt checkInCount firstCheckInAt
+        event {
+          id name location startTime endTime checkInCount uniqueAttendeeCount
+          days(order_by: { day: asc }) { day checkIns }
+          attendees: registrations(where: { checkInCount: { _gt: 0 } }) { checkInCount firstCheckInAt }
+        }
+        checkIns(order_by: { timestamp: asc }) { day timestamp txSignature }
       }
-      checkIns(order_by: { timestamp: desc }) { id timestamp dayNumber txSignature event { name } }
     }
   }
 `;
