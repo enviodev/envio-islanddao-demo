@@ -1,0 +1,135 @@
+# yaml-language-server: $schema=./node_modules/envio/svm.schema.json
+name: islanddao-indexer
+description: IslandDAO events, registrations and daily check-ins from the on-chain event program on Solana.
+ecosystem: svm
+chains:
+  - id: solana
+    # First transaction of the program (IslandDAO V4 setup, April 2026).
+    start_slot: 410949000
+programs:
+  # The program behind islanddao.org event check-ins. It publishes no IDL and
+  # dispatches on a single leading byte, so every instruction below was
+  # reverse-engineered from on-chain traffic: discriminator, account order and
+  # Borsh layout. Instructions that carry no args we read are left without an
+  # `args` decoder, so every call still reaches its handler.
+  - name: IslandEvents
+    program_id: tabiZjsKYe5rs8fMM7FonZaw3pVBpiWMosB25eN6RrU
+    instructions:
+      - name: createOrganization
+        discriminator: "0x20"
+        accounts: [admin, organization, profile, systemProgram]
+        args:
+          - { name: handle, type: string }
+          - { name: name, type: string }
+          - { name: description, type: string }
+          - { name: imageUrl, type: string }
+          - { name: website, type: string }
+
+      # Events and their sessions (talks, demos, socials) share one layout.
+      # The 21-byte tail is still opaque, and a few early calls carry a
+      # 20-byte one, so both rows share the discriminator: the one whose layout
+      # fits the data decodes it.
+      - name: createEvent
+        discriminator: "0x00"
+        accounts: [authority, event, payer, systemProgram, _, organization]
+        args:
+          - { name: name, type: string }
+          - { name: description, type: string }
+          - { name: imageUrl, type: string }
+          - { name: link, type: string }
+          - { name: location, type: string }
+          - { name: venue, type: string }
+          # Degrees scaled by 1e6.
+          - { name: latitude, type: i32 }
+          - { name: longitude, type: i32 }
+          - { name: flags, type: u8 }
+          - { name: category, type: u8 }
+          - { name: visibility, type: u8 }
+          - { name: startTime, type: i64 }
+          - { name: endTime, type: i64 }
+          - { name: tail, type: { array: [u8, 21] } }
+      - name: createEventShortTail
+        discriminator: "0x00"
+        accounts: [authority, event, payer, systemProgram, _, organization]
+        args:
+          - { name: name, type: string }
+          - { name: description, type: string }
+          - { name: imageUrl, type: string }
+          - { name: link, type: string }
+          - { name: location, type: string }
+          - { name: venue, type: string }
+          - { name: latitude, type: i32 }
+          - { name: longitude, type: i32 }
+          - { name: flags, type: u8 }
+          - { name: category, type: u8 }
+          - { name: visibility, type: u8 }
+          - { name: startTime, type: i64 }
+          - { name: endTime, type: i64 }
+          - { name: tail, type: { array: [u8, 20] } }
+
+      - name: addSession
+        discriminator: "0x02"
+        accounts: [authority, session, parentEvent, organization]
+        args: []
+
+      - name: register
+        discriminator: "0x04"
+        accounts: [attendee, eventSettings, registration, payer, event, ?referrer, systemProgram, config]
+      - name: approveRegistration
+        discriminator: "0x41"
+        accounts: [authority, event, organization, registration]
+      - name: rejectRegistration
+        discriminator: "0x42"
+        accounts: [authority, event, organization, eventSettings, registration]
+      - name: cancelRegistration
+        discriminator: "0x07"
+        accounts: [attendee, registration, event]
+
+      # Co-signed by the venue's check-in authority and the attendee. One
+      # attendance account per (event, attendee) counts the days checked in.
+      - name: checkIn
+        discriminator: "0x10"
+        accounts: [checkInAuthority, attendee, attendance, event, _, ?checkInConfig, _, _, systemProgram, _, registration]
+
+      - name: createProfile
+        discriminator: "0x1c"
+        accounts: [owner, profile, systemProgram]
+        args:
+          - { name: displayName, type: string }
+          - { name: bio, type: string }
+          - { name: avatarUrl, type: string }
+          - { name: website, type: string }
+      - name: updateProfile
+        discriminator: "0x1d"
+        accounts: [owner, profile]
+        args:
+          - { name: displayName, type: { option: string } }
+          - { name: bio, type: { option: string } }
+          - { name: avatarUrl, type: { option: string } }
+          - { name: website, type: { option: string } }
+      # A verifier co-signs the link, so the handle is attested, not self-claimed.
+      - name: linkSocial
+        discriminator: "0x36"
+        accounts: [owner, payer, profile, verifier, registry, socialHandle, systemProgram]
+        args:
+          # 0 = X (Twitter), the only platform used so far.
+          - { name: platform, type: u8 }
+          - { name: handle, type: { array: [u8, 64] } }
+
+      # Weekly passes sold for IslandDAO V4, minted as Metaplex Core assets and paid in USDC.
+      - name: createTicketTier
+        discriminator: "0x27"
+        accounts: [authority, ticketConfig, tier, payer, event, organization, systemProgram]
+        args:
+          - { name: name, type: string }
+          - { name: dates, type: string }
+          - { name: traitKey, type: string }
+          - { name: traitValue, type: string }
+          # USDC base units (6 decimals).
+          - { name: price, type: u64 }
+          - { name: maxSupply, type: { option: u64 } }
+          - { name: collection, type: { option: pubkey } }
+      - name: purchasePass
+        discriminator: "0x2a"
+        accounts: [buyer, tier, pass, asset, ticketConfig, event]
+        args: []

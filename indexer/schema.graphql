@@ -1,0 +1,154 @@
+enum RegistrationStatus {
+  Registered
+  Approved
+  Rejected
+  Cancelled
+}
+
+"Program-wide totals, a single row keyed by chain name, for dashboard KPIs."
+type GlobalStats {
+  id: ID!
+  organizations: Int!
+  events: Int!
+  sessions: Int!
+  users: Int!
+  profiles: Int!
+  registrations: Int!
+  checkIns: Int!
+  passesSold: Int!
+  "USDC base units (6 decimals)."
+  passRevenue: BigInt!
+  lastActivityAt: Int!
+}
+
+type Organization {
+  id: ID!
+  handle: String!
+  name: String!
+  description: String!
+  imageUrl: String!
+  website: String!
+  admin: String!
+  createdAt: Int!
+  events: [Event!]! @derivedFrom(field: "organization")
+}
+
+"A top-level event (IslandDAO V4, V5) or one of its sessions: talks, demos, socials."
+type Event {
+  id: ID!
+  organization: Organization!
+  "Set once the event is attached to a parent as a session."
+  parent: Event
+  sessions: [Event!]! @derivedFrom(field: "parent")
+  name: String! @index
+  description: String!
+  imageUrl: String!
+  link: String!
+  location: String!
+  venue: String!
+  latitude: Float
+  longitude: Float
+  category: Int!
+  categoryLabel: String!
+  startTime: Int! @index
+  endTime: Int!
+  creator: String!
+  createdAt: Int!
+  createdTx: String!
+  sessionCount: Int!
+  "Distinct registrations ever opened, whatever their current status."
+  registrationCount: Int!
+  pendingCount: Int!
+  approvedCount: Int!
+  rejectedCount: Int!
+  cancelledCount: Int!
+  checkInCount: Int!
+  "Attendees with at least one check-in."
+  uniqueAttendeeCount: Int!
+  lastCheckInAt: Int
+  registrations: [Registration!]! @derivedFrom(field: "event")
+  checkIns: [CheckIn!]! @derivedFrom(field: "event")
+  days: [EventDay!]! @derivedFrom(field: "event")
+}
+
+type User {
+  id: ID!
+  displayName: String
+  bio: String
+  avatarUrl: String
+  website: String
+  "X (Twitter) handle attested by the program's verifier."
+  xHandle: String
+  profile: String
+  firstSeenAt: Int!
+  registrationCount: Int!
+  checkInCount: Int!
+  registrations: [Registration!]! @derivedFrom(field: "user")
+  checkIns: [CheckIn!]! @derivedFrom(field: "user")
+}
+
+"Keyed by the registration PDA, which is reused when an attendee re-registers."
+type Registration {
+  id: ID!
+  event: Event!
+  user: User!
+  status: RegistrationStatus!
+  registeredAt: Int!
+  registeredTx: String!
+  reviewedAt: Int
+  reviewedBy: String
+  cancelledAt: Int
+  timesRegistered: Int!
+  checkInCount: Int!
+  firstCheckInAt: Int
+  lastCheckInAt: Int
+  checkIns: [CheckIn!]! @derivedFrom(field: "registration")
+}
+
+type CheckIn {
+  id: ID!
+  event: Event! @index
+  user: User! @index
+  registration: Registration!
+  "The attendance account that counts this attendee's days at the event."
+  attendance: String!
+  checkInAuthority: String!
+  timestamp: Int! @index
+  "UTC calendar day, YYYY-MM-DD."
+  day: String!
+  "1 for the attendee's first check-in at this event, 2 for the second day, ..."
+  dayNumber: Int!
+  slot: Int!
+  txSignature: String!
+}
+
+type EventDay {
+  id: ID!
+  event: Event!
+  day: String! @index
+  checkIns: Int!
+  "Attendees whose first check-in at the event was this day."
+  firstTimers: Int!
+}
+
+type TicketTier {
+  id: ID!
+  event: Event!
+  name: String!
+  dates: String!
+  "USDC base units (6 decimals)."
+  price: BigInt!
+  maxSupply: BigInt
+  sold: Int!
+}
+
+type PassPurchase {
+  id: ID!
+  tier: TicketTier!
+  event: Event!
+  buyer: User!
+  asset: String!
+  price: BigInt!
+  timestamp: Int!
+  txSignature: String!
+}
