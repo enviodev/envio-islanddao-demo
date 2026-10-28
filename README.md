@@ -89,13 +89,13 @@ The replay test calls HyperSync, so CI needs an `ENVIO_API_TOKEN` repository sec
 
 ### Indexer on Envio Cloud
 
-The repository has to be linked to an Envio organisation first
-([envio.dev/app](https://envio.dev/app), with the Envio GitHub app installed on
-`enviodev/envio-islanddao-demo`). Then:
+The indexer runs on Envio Cloud as `islanddao` in the `enviodev` organisation,
+with auto-deploy on every push to its branch. It was set up with:
 
 ```bash
 npx envio-cloud login
 npx envio-cloud indexer add \
+  --org enviodev \
   --name islanddao \
   --repo envio-islanddao-demo \
   --branch main \
@@ -104,6 +104,10 @@ npx envio-cloud indexer add \
 npx envio-cloud deployment status islanddao <commit> --watch-till-synced
 npx envio-cloud deployment endpoint islanddao <commit>   # the GraphQL URL for the dashboard
 ```
+
+Envio Cloud only sees commits pushed after the indexer is added, so the first
+deployment starts with the next push. To change the deploy branch:
+`npx envio-cloud indexer settings set islanddao --branch <branch>`.
 
 ### Dashboard on GitHub Pages
 
