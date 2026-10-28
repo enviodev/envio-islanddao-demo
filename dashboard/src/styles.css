@@ -1139,3 +1139,12 @@ tr:last-child td {
   font-size: 13px;
   color: var(--text-2);
 }
+
+/* Tabs are links (clean, shareable URLs), so undo the global link hover. */
+.view:hover,
+.event-tab:hover {
+  color: var(--text);
+}
+.view.active:hover {
+  color: #040e0e;
+}

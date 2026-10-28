@@ -6,9 +6,9 @@ built on its GraphQL API.
 
 - `indexer/`: HyperIndex project (`ecosystem: svm`), scaffolded with `pnpx envio init svm`
 - `dashboard/`: Vite + React dashboard, branded IslandDAO × Envio, polling the indexer every 5 seconds. It has three views:
-  - **Overview** (`#overview`): the showcase for everyone. Live islander count, the island calendar, the latest check-ins, regulars, and a wall of every attendee
-  - **Organizers** (`#organizers`): KPIs, daily check-ins split into first-timers and returning, the registration funnel, the days-attended distribution, sessions and pass sales
-  - **My island** (`#me?wallet=…`): an attendee's island passport, with a stamp per day checked in, their leaderboard rank, islander number, longest streak and usual check-in time
+  - **Overview** (`/`, or `/v4` for an earlier edition): the showcase for everyone. Live islander count, the island calendar, the latest check-ins, regulars, and a wall of every attendee
+  - **Organizers** (`/organizers`, `/v4/organizers`): KPIs, daily check-ins split into first-timers and returning, the registration funnel, the days-attended distribution, sessions and pass sales
+  - **My island** (`/me/<wallet>`): an attendee's island passport, with a stamp per day checked in, their leaderboard rank, islander number, longest streak and usual check-in time
 
 ## The program
 
@@ -118,6 +118,12 @@ push to `main` that touches it.
 
 Until the variable is set, the site deploys with a "not connected yet" notice
 instead of data.
+
+Pages only serves static files, so the build writes `organizers/` and `me/`
+copies of the app and a `404.html` fallback for dynamic paths such as
+`/me/<wallet>` (those load with HTTP status 404). To drop the
+`/envio-islanddao-demo/` prefix, add a custom domain in Settings → Pages and
+set the `DASHBOARD_BASE_PATH` variable to `/`.
 
 ## What the demo shows off
 

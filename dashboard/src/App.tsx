@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { EVENTS_QUERY, INDEXER_CONFIGURED, usePolling, type MainEvent } from "./api";
 import { CollabLockup, EnvioCta, LINKS, TokenButton } from "./brand";
 import { isLive } from "./format";
+import { editionSlug, routePath, useRoute, type Route } from "./router";
 import { MyIsland } from "./views/MyIsland";
 import { Organizers } from "./views/Organizers";
 import { Overview } from "./views/Overview";
@@ -11,22 +12,23 @@ const VIEWS = [
   { id: "organizers", label: "Organizers" },
   { id: "me", label: "My island" },
 ] as const;
-type View = (typeof VIEWS)[number]["id"];
 
 const WALLET_KEY = "islanddao.wallet";
 
-const readView = (): View => {
-  const v = window.location.hash.slice(1);
-  return VIEWS.some((x) => x.id === v) ? (v as View) : "overview";
-};
-
-const readWallet = () => {
-  const fromUrl = new URLSearchParams(window.location.search).get("wallet");
-  if (fromUrl) return fromUrl;
+const storedWallet = () => {
   try {
     return localStorage.getItem(WALLET_KEY) ?? undefined;
   } catch {
     return undefined;
+  }
+};
+
+const storeWallet = (wallet?: string) => {
+  try {
+    if (wallet) localStorage.setItem(WALLET_KEY, wallet);
+    else localStorage.removeItem(WALLET_KEY);
+  } catch {
+    // Storage can be unavailable (private mode); the URL still carries the wallet.
   }
 };
 
@@ -41,37 +43,25 @@ function useNow(intervalMs = 1_000) {
 
 export function App() {
   const now = useNow();
-  const [view, setView] = useState<View>(readView);
-  const [wallet, setWallet] = useState<string | undefined>(readWallet);
+  const { route, navigate, linkTo } = useRoute();
   const { data, error } = usePolling<{ Event: MainEvent[] }>(EVENTS_QUERY, {}, 60_000, INDEXER_CONFIGURED);
   const events = data?.Event ?? [];
-  const [selected, setSelected] = useState<string>();
-  const eventId = selected ?? events[0]?.id;
+  const edition = route.view === "me" ? undefined : route.edition;
+  // The newest edition lives at the root; older ones under their slug.
+  const event = (edition && events.find((e) => editionSlug(e.name) === edition)) || events[0];
+  const eventId = event?.id;
+  const editionOf = (e: MainEvent) => (e.id === events[0]?.id ? undefined : editionSlug(e.name));
+  const routeFor = (view: (typeof VIEWS)[number]["id"]): Route =>
+    view === "me" ? { view, wallet: storedWallet() } : { view, edition: event ? editionOf(event) : edition };
 
+  // /me remembers the last wallet looked up on this device.
   useEffect(() => {
-    const onHash = () => setView(readView());
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
+    if (route.view === "me" && !route.wallet && storedWallet()) navigate({ view: "me", wallet: storedWallet() }, { replace: true });
+  }, [route]);
 
-  const go = (v: View) => {
-    window.location.hash = v;
-    setView(v);
-    window.scrollTo({ top: 0 });
-  };
-
-  const changeWallet = (w?: string) => {
-    setWallet(w);
-    const url = new URL(window.location.href);
-    if (w) url.searchParams.set("wallet", w);
-    else url.searchParams.delete("wallet");
-    window.history.replaceState(null, "", url);
-    try {
-      if (w) localStorage.setItem(WALLET_KEY, w);
-      else localStorage.removeItem(WALLET_KEY);
-    } catch {
-      // Storage can be unavailable (private mode); the URL still carries the wallet.
-    }
+  const changeWallet = (wallet?: string) => {
+    storeWallet(wallet);
+    navigate({ view: "me", wallet }, { replace: route.view === "me" && !route.wallet });
   };
 
   return (
@@ -84,25 +74,36 @@ export function App() {
         <nav className="masthead-row">
           <div className="views" role="tablist" aria-label="Views">
             {VIEWS.map((v) => (
-              <button key={v.id} role="tab" aria-selected={view === v.id} className={view === v.id ? "view active" : "view"} onClick={() => go(v.id)}>
+              <a
+                key={v.id}
+                role="tab"
+                aria-selected={route.view === v.id}
+                className={route.view === v.id ? "view active" : "view"}
+                href={routePath(routeFor(v.id))}
+                onClick={linkTo(routeFor(v.id))}
+              >
                 {v.label}
-              </button>
+              </a>
             ))}
           </div>
-          {view !== "me" && events.length > 1 && (
+          {route.view !== "me" && events.length > 1 && (
             <div className="events" role="tablist" aria-label="Edition">
-              {events.map((e) => (
-                <button
-                  key={e.id}
-                  role="tab"
-                  aria-selected={e.id === eventId}
-                  className={e.id === eventId ? "event-tab active" : "event-tab"}
-                  onClick={() => setSelected(e.id)}
-                >
-                  {e.name.replace("IslandDAO ", "").replace(" - Thailand", " · Thailand")}
-                  {isLive(e, now) && <span className="live-dot" aria-label="live" />}
-                </button>
-              ))}
+              {events.map((e) => {
+                const to: Route = { view: route.view, edition: editionOf(e) };
+                return (
+                  <a
+                    key={e.id}
+                    role="tab"
+                    aria-selected={e.id === eventId}
+                    className={e.id === eventId ? "event-tab active" : "event-tab"}
+                    href={routePath(to)}
+                    onClick={linkTo(to)}
+                  >
+                    {e.name.replace("IslandDAO ", "").replace(" - Thailand", " · Thailand")}
+                    {isLive(e, now) && <span className="live-dot" aria-label="live" />}
+                  </a>
+                );
+              })}
             </div>
           )}
         </nav>
@@ -116,9 +117,11 @@ export function App() {
           </EnvioCta>
         )}
         {error && !data && <p className="error">Could not reach the indexer GraphQL API: {error}</p>}
-        {view === "overview" && eventId && <Overview key={eventId} eventId={eventId} now={now} onFindPassport={() => go("me")} />}
-        {view === "organizers" && eventId && <Organizers key={eventId} eventId={eventId} now={now} />}
-        {view === "me" && <MyIsland wallet={wallet} onWallet={changeWallet} />}
+        {route.view === "overview" && eventId && (
+          <Overview key={eventId} eventId={eventId} now={now} passportHref={routePath(routeFor("me"))} onFindPassport={linkTo(routeFor("me"))} />
+        )}
+        {route.view === "organizers" && eventId && <Organizers key={eventId} eventId={eventId} now={now} />}
+        {route.view === "me" && <MyIsland key={route.wallet ?? ""} wallet={route.wallet} onWallet={changeWallet} />}
       </main>
 
       <footer className="site-footer">

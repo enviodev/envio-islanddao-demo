@@ -1,11 +1,21 @@
-import { useMemo } from "react";
+import { useMemo, type MouseEvent } from "react";
 import { OVERVIEW_QUERY, usePolling, type OverviewData } from "../api";
 import { EnvioCta } from "../brand";
 import { ago, dateRange, daysBetween, isLive, num, solscanAccount, solscanTx, userName, utcDay } from "../format";
 import { Avatar, DayDots, IslandCalendar } from "../island";
 import { Section } from "../ui";
 
-export function Overview({ eventId, now, onFindPassport }: { eventId: string; now: number; onFindPassport: () => void }) {
+export function Overview({
+  eventId,
+  now,
+  passportHref,
+  onFindPassport,
+}: {
+  eventId: string;
+  now: number;
+  passportHref: string;
+  onFindPassport: (e: MouseEvent) => void;
+}) {
   const { data, error } = usePolling<OverviewData>(OVERVIEW_QUERY, { event: eventId }, 5_000);
   const event = data?.Event_by_pk;
   const islandDays = useMemo(() => (data?.EventDay ?? []).map((d) => d.day), [data?.EventDay]);
@@ -107,9 +117,9 @@ export function Overview({ eventId, now, onFindPassport }: { eventId: string; no
         title={`${num(data.islanders.length)} islanders`}
         subtitle="Everyone who checked in, in the order they arrived."
         aside={
-          <button className="ghost-button" onClick={onFindPassport}>
+          <a className="ghost-button" href={passportHref} onClick={onFindPassport}>
             Find your passport →
-          </button>
+          </a>
         }
       >
         <div className="wall">

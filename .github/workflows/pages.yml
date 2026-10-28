@@ -51,7 +51,8 @@ jobs:
       - name: Build
         run: pnpm build
         env:
-          BASE_PATH: /${{ github.event.repository.name }}/
+          # "/" when the site has a custom domain, otherwise the project path.
+          BASE_PATH: ${{ vars.DASHBOARD_BASE_PATH || format('/{0}/', github.event.repository.name) }}
           VITE_GRAPHQL_URL: ${{ vars.ENVIO_GRAPHQL_URL }}
 
       - uses: actions/upload-pages-artifact@v3
