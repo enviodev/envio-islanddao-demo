@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import wordmark from "./assets/islanddao-wordmark.png";
 
 export const LINKS = {
   envioToken: "https://envio.dev/app/api-tokens",
@@ -16,7 +17,7 @@ export function CollabLockup() {
   return (
     <span className="lockup">
       <a href={LINKS.island} target="_blank" rel="noreferrer" className="lockup-island" aria-label="IslandDAO">
-        <img src="/islanddao-wordmark.png" alt="IslandDAO" height={22} />
+        <img src={wordmark} alt="IslandDAO" height={22} />
       </a>
       <span className="lockup-x" aria-hidden>
         ×

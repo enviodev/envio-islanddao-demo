@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
-const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL ?? "/v1/graphql";
+const GRAPHQL_URL = import.meta.env.VITE_GRAPHQL_URL || "/v1/graphql";
+
+/** Dev proxies /v1/graphql to the local indexer; a production build needs VITE_GRAPHQL_URL. */
+export const INDEXER_CONFIGURED = !import.meta.env.PROD || Boolean(import.meta.env.VITE_GRAPHQL_URL);
 
 export async function gql<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
   const res = await fetch(GRAPHQL_URL, {

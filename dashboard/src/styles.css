@@ -260,7 +260,7 @@ h2 {
   top: 10px;
   width: 300px;
   height: 300px;
-  background: url("/islanddao-logo.png") center / contain no-repeat;
+  background: url("./assets/islanddao-logo.png") center / contain no-repeat;
   opacity: 0.05;
   pointer-events: none;
 }
@@ -1036,7 +1036,7 @@ tr:last-child td {
   bottom: -30px;
   width: 180px;
   height: 180px;
-  background: url("/islanddao-logo.png") center / contain no-repeat;
+  background: url("./assets/islanddao-logo.png") center / contain no-repeat;
   opacity: 0.06;
   pointer-events: none;
 }

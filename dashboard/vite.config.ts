@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react";
 
 // The indexer's GraphQL API (Hasura) is proxied so the browser stays same-origin.
 export default defineConfig({
+  // GitHub Pages serves the app from /<repo>/; set BASE_PATH there.
+  base: process.env.BASE_PATH ?? "/",
   plugins: [react()],
   server: {
     proxy: {

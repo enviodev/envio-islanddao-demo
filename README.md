@@ -83,6 +83,42 @@ it elsewhere.
 cd indexer && pnpm test   # simulated lifecycle test + a HyperSync replay pinned to slot 462,250,000
 ```
 
+The replay test calls HyperSync, so CI needs an `ENVIO_API_TOKEN` repository secret.
+
+## Deploying
+
+### Indexer on Envio Cloud
+
+The repository has to be linked to an Envio organisation first
+([envio.dev/app](https://envio.dev/app), with the Envio GitHub app installed on
+`enviodev/envio-islanddao-demo`). Then:
+
+```bash
+npx envio-cloud login
+npx envio-cloud indexer add \
+  --name islanddao \
+  --repo envio-islanddao-demo \
+  --branch main \
+  --root-dir indexer/ \
+  --config-file config.yaml
+npx envio-cloud deployment status islanddao <commit> --watch-till-synced
+npx envio-cloud deployment endpoint islanddao <commit>   # the GraphQL URL for the dashboard
+```
+
+### Dashboard on GitHub Pages
+
+`.github/workflows/pages.yml` builds `dashboard/` and publishes it on every
+push to `main` that touches it.
+
+1. Settings → Pages → Source: **GitHub Actions**.
+2. Settings → Secrets and variables → Actions → **Variables**: set
+   `ENVIO_GRAPHQL_URL` to the endpoint from the step above.
+3. Run the "Dashboard (GitHub Pages)" workflow, or push to `main`. The site is
+   served at `https://enviodev.github.io/envio-islanddao-demo/`.
+
+Until the variable is set, the site deploys with a "not connected yet" notice
+instead of data.
+
 ## What the demo shows off
 
 - **Solana in HyperIndex without an IDL.** Instructions are declared inline in

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { EVENTS_QUERY, usePolling, type MainEvent } from "./api";
-import { CollabLockup, LINKS, TokenButton } from "./brand";
+import { EVENTS_QUERY, INDEXER_CONFIGURED, usePolling, type MainEvent } from "./api";
+import { CollabLockup, EnvioCta, LINKS, TokenButton } from "./brand";
 import { isLive } from "./format";
 import { MyIsland } from "./views/MyIsland";
 import { Organizers } from "./views/Organizers";
@@ -43,7 +43,7 @@ export function App() {
   const now = useNow();
   const [view, setView] = useState<View>(readView);
   const [wallet, setWallet] = useState<string | undefined>(readWallet);
-  const { data, error } = usePolling<{ Event: MainEvent[] }>(EVENTS_QUERY, {}, 60_000);
+  const { data, error } = usePolling<{ Event: MainEvent[] }>(EVENTS_QUERY, {}, 60_000, INDEXER_CONFIGURED);
   const events = data?.Event ?? [];
   const [selected, setSelected] = useState<string>();
   const eventId = selected ?? events[0]?.id;
@@ -109,6 +109,12 @@ export function App() {
       </header>
 
       <main>
+        {!INDEXER_CONFIGURED && (
+          <EnvioCta title="The island is almost live">
+            This build isn't connected to an indexer yet. Deploy the HyperIndex indexer to Envio Cloud, then rebuild with
+            its GraphQL endpoint in <code>VITE_GRAPHQL_URL</code>.
+          </EnvioCta>
+        )}
         {error && !data && <p className="error">Could not reach the indexer GraphQL API: {error}</p>}
         {view === "overview" && eventId && <Overview key={eventId} eventId={eventId} now={now} onFindPassport={() => go("me")} />}
         {view === "organizers" && eventId && <Organizers key={eventId} eventId={eventId} now={now} />}

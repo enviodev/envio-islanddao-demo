@@ -1,0 +1,69 @@
+# Builds the dashboard and publishes it to GitHub Pages.
+#
+# One-time setup:
+#   1. Settings > Pages > Build and deployment > Source: "GitHub Actions".
+#   2. Settings > Secrets and variables > Actions > Variables: add ENVIO_GRAPHQL_URL
+#      with the indexer's Envio Cloud GraphQL endpoint
+#      (`envio-cloud deployment endpoint <indexer> <commit>`).
+# Without the variable the site still deploys and shows a "not connected yet" notice.
+
+name: Dashboard (GitHub Pages)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - dashboard/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: dashboard/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_GRAPHQL_URL: ${{ vars.ENVIO_GRAPHQL_URL }}
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
