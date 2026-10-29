@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 /** The islanddao indexer's GraphQL API on Envio Cloud. Each deployment has its own URL. */
-export const GRAPHQL_URL = "https://indexer.dev.hyperindex.xyz/a020887/v1/graphql";
+export const GRAPHQL_URL = "https://indexer.dev.hyperindex.xyz/3639903/v1/graphql";
 
 export async function gql<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
   const res = await fetch(GRAPHQL_URL, {
