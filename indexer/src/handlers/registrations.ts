@@ -1,11 +1,11 @@
 import { indexer, type Event, type Registration, type SvmOnSlotContext } from "envio";
-import { baseFields, getStats, instructionId, loadUser, utcDay } from "../shared.js";
+import { baseFields, eventDayDate, eventDayIndex, getStats, instructionId, loadUser } from "../shared.js";
 
 type RegistrationStatus = Registration["status"];
 
 const statusCounter = {
-  Registered: "pendingCount",
-  Approved: "approvedCount",
+  Pending: "pendingCount",
+  Confirmed: "confirmedCount",
   Rejected: "rejectedCount",
   Cancelled: "cancelledCount",
 } as const satisfies Record<RegistrationStatus, keyof Event>;
@@ -30,25 +30,29 @@ indexer.onInstruction(
     }
     const user = await loadUser(context, attendee.address, time);
     const existing = await context.Registration.get(registration.address);
+    // Without an approval step the program confirms the registration on the spot.
+    const status: RegistrationStatus = event.requiresApproval ? "Pending" : "Confirmed";
 
     context.Registration.set({
       checkInCount: 0,
       firstCheckInAt: undefined,
       lastCheckInAt: undefined,
+      arrivedAt: undefined,
       ...existing,
       id: registration.address,
       event_id: event.id,
       user_id: user.id,
-      status: "Registered",
+      status,
       registeredAt: time,
       registeredTx: instruction.transaction.signature,
+      registrationNumber: existing?.registrationNumber ?? event.registrationCount + 1,
       reviewedAt: undefined,
       reviewedBy: undefined,
       cancelledAt: undefined,
       timesRegistered: (existing?.timesRegistered ?? 0) + 1,
     });
 
-    const counted = recount(event, existing?.status, "Registered");
+    const counted = recount(event, existing?.status, status);
     if (existing) {
       context.Event.set(counted);
       return;
@@ -90,7 +94,7 @@ const review = (to: RegistrationStatus) =>
     });
   };
 
-const approve = review("Approved");
+const approve = review("Confirmed");
 const reject = review("Rejected");
 const cancel = review("Cancelled");
 
@@ -140,7 +144,9 @@ indexer.onInstruction(
       return;
     }
     const user = await loadUser(context, attendee.address, time);
-    const day = utcDay(time);
+    // Bucket by the event's own days, as the attendance account does, not by UTC date.
+    const dayIndex = eventDayIndex(time, event.startTime);
+    const day = eventDayDate(dayIndex, event.startTime, event.utcOffsetMinutes);
     const isFirst = registration.checkInCount === 0;
     const dayNumber = registration.checkInCount + 1;
 
@@ -152,6 +158,7 @@ indexer.onInstruction(
       attendance: attendance.address,
       checkInAuthority: checkInAuthority.address,
       timestamp: time,
+      eventDay: dayIndex + 1,
       day,
       dayNumber,
       slot: instruction.block.slot,
@@ -172,9 +179,11 @@ indexer.onInstruction(
     const eventDay = await context.EventDay.getOrCreate({
       id: `${event.id}-${day}`,
       event_id: event.id,
+      eventDay: dayIndex + 1,
       day,
       checkIns: 0,
       firstTimers: 0,
+      firstIn_id: user.id,
     });
     context.EventDay.set({
       ...eventDay,
@@ -184,5 +193,18 @@ indexer.onInstruction(
     context.User.set({ ...user, checkInCount: user.checkInCount + 1 });
     const stats = await getStats(context);
     context.GlobalStats.set({ ...stats, checkIns: stats.checkIns + 1, lastActivityAt: time });
+  },
+);
+
+indexer.onInstruction(
+  { program: "IslandEvents", instruction: "eventCheckIn", fields: baseFields },
+  async ({ instruction, context }) => {
+    const registration = await context.Registration.get(instruction.accounts.registration.address);
+    if (!registration) {
+      context.log.warn(`eventCheckIn for unknown registration ${instruction.accounts.registration.address}`);
+      return;
+    }
+    if (registration.arrivedAt !== undefined) return;
+    context.Registration.set({ ...registration, arrivedAt: instruction.block.time });
   },
 );

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { num, shortDay, weekday } from "./format";
 
 function useWidth<T extends HTMLElement>() {
@@ -209,6 +209,88 @@ export function Funnel({ steps }: { steps: { label: string; value: number; hint:
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+export type SignupPoint = { day: string; added: number; total: number };
+
+/** Running total of registrations per day, with the edition's first day marked. */
+export function Signups({ data, startDay }: { data: SignupPoint[]; startDay?: string }) {
+  const [ref, width] = useWidth<HTMLDivElement>();
+  const [hover, setHover] = useState<number>();
+  const height = 200;
+  const m = { top: 12, right: 8, bottom: 28, left: 36 };
+  const innerW = Math.max(0, width - m.left - m.right);
+  const innerH = height - m.top - m.bottom;
+  const { top, step } = niceScale(Math.max(1, ...data.map((d) => d.total)));
+  const x = (i: number) => (data.length > 1 ? (i / (data.length - 1)) * innerW : innerW / 2);
+  const y = (v: number) => innerH - (v / top) * innerH;
+  const line = data.map((d, i) => `${i ? "L" : "M"}${x(i)},${y(d.total)}`).join("");
+  const area = data.length ? `${line}L${x(data.length - 1)},${innerH}L${x(0)},${innerH}Z` : "";
+  const labelEvery = Math.ceil(data.length / Math.max(1, Math.floor(innerW / 64)));
+  const startIndex = startDay ? data.findIndex((d) => d.day >= startDay) : -1;
+  const h = hover !== undefined ? data[hover] : undefined;
+
+  const onMove = (e: ReactMouseEvent<SVGRectElement>) => {
+    const box = e.currentTarget.getBoundingClientRect();
+    const i = Math.round(((e.clientX - box.left) / box.width) * (data.length - 1));
+    setHover(Math.max(0, Math.min(data.length - 1, i)));
+  };
+
+  return (
+    <div ref={ref} className="chart" onMouseLeave={() => setHover(undefined)}>
+      {width > 0 && (
+        <svg width={width} height={height} role="img" aria-label="Registrations over time">
+          <defs>
+            <linearGradient id="signups-fill" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stopColor="var(--series-1)" stopOpacity="0.35" />
+              <stop offset="1" stopColor="var(--series-1)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <g transform={`translate(${m.left},${m.top})`}>
+            {Array.from({ length: top / step + 1 }, (_, i) => i * step).map((t) => (
+              <g key={t} transform={`translate(0,${y(t)})`}>
+                <line x2={innerW} className={t === 0 ? "axis" : "grid"} />
+                <text x={-8} dy="0.32em" textAnchor="end" className="tick">
+                  {num(t)}
+                </text>
+              </g>
+            ))}
+            <path d={area} fill="url(#signups-fill)" />
+            <path d={line} fill="none" stroke="var(--series-1)" strokeWidth={2} />
+            {startIndex >= 0 && (
+              <g transform={`translate(${x(startIndex)},0)`}>
+                <line y2={innerH} stroke="var(--sand)" strokeDasharray="3 3" />
+                <text y={-2} textAnchor="middle" className="tick tick-strong">
+                  day 1
+                </text>
+              </g>
+            )}
+            {data.map(
+              (d, i) =>
+                i % labelEvery === 0 && (
+                  <text key={d.day} x={x(i)} y={innerH + 18} textAnchor="middle" className="tick">
+                    {shortDay(d.day)}
+                  </text>
+                ),
+            )}
+            {h && hover !== undefined && <circle cx={x(hover)} cy={y(h.total)} r={4} fill="var(--series-1)" stroke="var(--surface)" strokeWidth={2} />}
+            <rect width={innerW} height={innerH} fill="transparent" onMouseMove={onMove} />
+          </g>
+        </svg>
+      )}
+      {h && hover !== undefined && (
+        <Tooltip x={m.left + x(hover)} y={m.top + y(h.total) - 10} width={width}>
+          <strong>{shortDay(h.day)}</strong>
+          <span>
+            New registrations <b>{num(h.added)}</b>
+          </span>
+          <span>
+            Total so far <b>{num(h.total)}</b>
+          </span>
+        </Tooltip>
+      )}
     </div>
   );
 }

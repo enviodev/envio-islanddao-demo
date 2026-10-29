@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import wordmark from "./assets/islanddao-wordmark.png";
 
 export const LINKS = {
-  envioToken: "https://envio.dev/app/api-tokens",
+  envioApp: "https://envio.dev/app",
   envioDocs: "https://docs.envio.dev/docs/HyperIndex/overview",
   envio: "https://envio.dev",
   island: "https://islanddao.org/events/v5-brazil-2026",
@@ -29,56 +29,153 @@ export function CollabLockup() {
   );
 }
 
-export function TokenButton({ label = "Get a free Envio API token" }: { label?: string }) {
+/**
+ * A slim strip above the header: what Envio is, in one line, and where to
+ * start. It scrolls away; the header below stays.
+ */
+export function EnvioBar() {
   return (
-    <a className="token-button" href={LINKS.envioToken} target="_blank" rel="noreferrer">
-      {label}
-      <span aria-hidden>→</span>
+    <a className="envio-bar" href={LINKS.envioApp} target="_blank" rel="noreferrer">
+      <span className="envio-bar-text">
+        <span className="envio-bar-bolt" aria-hidden>
+          ⚡
+        </span>
+        <span className="label-long">
+          Building on Solana? Turn your program into a live API with <b>Envio</b>.
+        </span>
+        <span className="label-short">
+          <b>Envio</b> · your program as a live API
+        </span>
+      </span>
+      <span className="envio-bar-cta">
+        Start free <span aria-hidden>→</span>
+      </span>
     </a>
   );
 }
 
-/** The collab banner: what powers the page, and an invite to build with Envio. */
-export function EnvioCta({ title, children }: { title: string; children?: ReactNode }) {
+/** Trimmed from this repo: the real config, handler and query behind the check-ins. */
+const SNIPPETS = [
+  {
+    file: "config.yaml",
+    note: "Point Envio at the program and name its instructions.",
+    code: `programs:
+  - name: IslandEvents
+    program_id: tabiZjsKYe5rs8fMM7FonZaw3pVBpiWMosB25eN6RrU
+    instructions:
+      - name: checkIn
+        discriminator: "0x10"
+        accounts: [checkInAuthority, attendee, attendance, event]`,
+  },
+  {
+    file: "handler.ts",
+    note: "Turn each instruction into rows you can query.",
+    code: `indexer.onInstruction(
+  { program: "IslandEvents", instruction: "checkIn" },
+  async ({ instruction, context }) => {
+    const { attendee, event } = instruction.accounts;
+    context.CheckIn.set({
+      id: instruction.transaction.signature,
+      event_id: event.address,
+      user_id: attendee.address,
+      timestamp: instruction.block.time,
+    });
+  },
+);`,
+  },
+  {
+    file: "query.graphql",
+    note: "Query it live. This page polls queries like this one.",
+    code: `query LatestCheckIns {
+  CheckIn(order_by: { timestamp: desc }, limit: 5) {
+    timestamp
+    user { displayName xHandle }
+  }
+}`,
+  },
+];
+
+const TOKEN = /("[^"]*"|\/\/.*$|#.*$|\b(?:const|async|await|query)\b|\b[A-Za-z_]+(?=:)|\b\d+\b)/gm;
+
+/** Just enough highlighting for three short snippets: strings, keys, keywords, numbers. */
+function highlight(code: string) {
+  const parts: ReactNode[] = [];
+  let last = 0;
+  for (const m of code.matchAll(TOKEN)) {
+    const t = m[0];
+    if (m.index! > last) parts.push(code.slice(last, m.index));
+    const cls = t.startsWith('"') ? "t-str" : /^(\/\/|#)/.test(t) ? "t-muted" : /^\d/.test(t) ? "t-num" : /^(const|async|await|query)$/.test(t) ? "t-kw" : "t-key";
+    parts.push(
+      <span key={m.index} className={cls}>
+        {t}
+      </span>,
+    );
+    last = m.index! + t.length;
+  }
+  parts.push(code.slice(last));
+  return parts;
+}
+
+function CodeWindow() {
+  const [tab, setTab] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const snippet = SNIPPETS[tab];
+  const command = "pnpx envio init svm";
+  return (
+    <div className="code-window">
+      <div className="code-tabs" role="tablist" aria-label="How this indexer is built">
+        {SNIPPETS.map((sn, i) => (
+          <button key={sn.file} role="tab" aria-selected={i === tab} className={i === tab ? "active" : ""} onClick={() => setTab(i)}>
+            <span className="code-step">{i + 1}</span>
+            {sn.file}
+          </button>
+        ))}
+      </div>
+      <p className="code-note">{snippet.note}</p>
+      <pre className="code" role="tabpanel">
+        <code>{highlight(snippet.code)}</code>
+      </pre>
+      <div className="code-start">
+        <span className="t-muted">$</span> <code>{command}</code>
+        <button
+          className="copy"
+          onClick={() =>
+            navigator.clipboard?.writeText(command).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            })
+          }
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The quiet box at the foot of each page: what powers it, in one line, and
+ * the code behind it. The pitch itself lives in the bar at the top.
+ */
+export function EnvioCta({ context }: { context: ReactNode }) {
   return (
     <section className="cta">
       <div className="cta-copy">
-        <span className="kicker">IslandDAO × Envio</span>
-        <h2>{title}</h2>
+        <span className="kicker">Powered by Envio</span>
+        <h2>How this page is built</h2>
         <p>
-          {children ?? (
-            <>
-              Every number on this page is indexed live from IslandDAO's check-in program on Solana with{" "}
-              <b>Envio HyperIndex</b>. HyperSync backfilled the program's whole history in minutes. Point it at
-              any program and you get a GraphQL API.
-            </>
-          )}
+          {context} Here's the gist for check-ins: a config, a handler and a query.
         </p>
         <div className="cta-actions">
-          <TokenButton />
-          <a className="ghost-button" href={LINKS.envioDocs} target="_blank" rel="noreferrer">
-            Read the docs
+          <a className="token-button" href={LINKS.envioApp} target="_blank" rel="noreferrer">
+            Start free <span aria-hidden>→</span>
           </a>
           <a className="ghost-button" href={LINKS.repo} target="_blank" rel="noreferrer">
-            See this indexer's code
+            See this demo's code
           </a>
         </div>
       </div>
-      <pre className="terminal" aria-label="Get started with Envio">
-        <span className="terminal-bar">
-          <i />
-          <i />
-          <i />
-        </span>
-        <code>
-          <span className="t-muted">$</span> pnpx envio init svm{"\n"}
-          <span className="t-muted">? Name your indexer</span> islanddao{"\n"}
-          <span className="t-ok">✓</span> Indexer ready{"\n"}
-          <span className="t-muted">$</span> pnpm dev{"\n"}
-          <span className="t-ok">✓</span> Synced 1,967 instructions{"\n"}
-          <span className="t-accent">→ GraphQL on localhost:8080</span>
-        </code>
-      </pre>
+      <CodeWindow />
     </section>
   );
 }

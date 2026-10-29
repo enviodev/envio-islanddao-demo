@@ -25,10 +25,13 @@ GraphQL Playground: [http://localhost:8080](http://localhost:8080) (local passwo
     approvedCount
     uniqueAttendeeCount
     checkInCount
-    days(order_by: { day: asc }) { day checkIns firstTimers }
+    requiresApproval
+    utcOffsetMinutes
+    days(order_by: { day: asc }) { day eventDay checkIns firstTimers }
   }
   CheckIn(order_by: { timestamp: desc }, limit: 5) {
     day
+    eventDay
     dayNumber
     user { id displayName xHandle }
     event { name }
@@ -55,12 +58,8 @@ pnpm test
 |---|---|
 | `config.yaml` | The instruction catalog: discriminators, account slots, Borsh args |
 | `schema.graphql` | `Organization`, `Event`, `Registration`, `CheckIn`, `EventDay`, `User`, `TicketTier`, `PassPurchase`, `GlobalStats` |
-| `src/handlers/events.ts` | Organizations, events and sessions |
-| `src/handlers/registrations.ts` | Register, approve, reject, cancel, check-in |
+| `src/handlers/events.ts` | Organizations, events and sessions, their edits, images and approval setting |
+| `src/handlers/registrations.ts` | Register, approve, reject, cancel, daily and one-off check-ins |
 | `src/handlers/profiles.ts` | Profiles and attested X handles |
 | `src/handlers/tickets.ts` | V4 weekly pass tiers and purchases |
-| `src/shared.ts` | Field selection, ids, labels, the global stats row |
-
-Envio 3.14.0 crashes when a handler selects `fields.log` and HyperSync returns
-an instruction with no logs. This program emits no logs we need, so the
-handlers don't select them.
+| `src/shared.ts` | Field selection, ids, labels, event-day math, the `updateEvent` decoder, the global stats row |

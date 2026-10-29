@@ -26,9 +26,10 @@ programs:
           - { name: website, type: string }
 
       # Events and their sessions (talks, demos, socials) share one layout.
-      # The 21-byte tail is still opaque, and a few early calls carry a
-      # 20-byte one, so both rows share the discriminator: the one whose layout
-      # fits the data decodes it.
+      # The tail starts with the event's UTC offset in quarter-hours (i8: 28 is
+      # UTC+7, -12 is UTC-3); the rest is still opaque. Calls made before the
+      # program added a field carry a 20-byte tail, so both rows share the
+      # discriminator: the one whose layout fits the data decodes it.
       - name: createEvent
         discriminator: "0x00"
         accounts: [authority, event, payer, systemProgram, _, organization]
@@ -67,6 +68,24 @@ programs:
           - { name: endTime, type: i64 }
           - { name: tail, type: { array: [u8, 20] } }
 
+      # Every field is a Borsh Option and the field list grew between program
+      # versions, so the handler reads the raw bytes itself (see
+      # `decodeEventUpdate`) instead of declaring `args` here.
+      - name: updateEvent
+        discriminator: "0x01"
+        accounts: [authority, event, organization]
+      - name: setEventImage
+        discriminator: "0x30"
+        accounts: [authority, event, organization]
+        args:
+          - { name: imageUrl, type: string }
+      # Writes the flag to the event's settings account. Only V5 turns it on.
+      - name: setRequiresApproval
+        discriminator: "0x43"
+        accounts: [authority, event, eventSettings, organization]
+        args:
+          - { name: requiresApproval, type: bool }
+
       - name: addSession
         discriminator: "0x02"
         accounts: [authority, session, parentEvent, organization]
@@ -86,10 +105,18 @@ programs:
         accounts: [attendee, registration, event]
 
       # Co-signed by the venue's check-in authority and the attendee. One
-      # attendance account per (event, attendee) counts the days checked in.
+      # attendance account per (event, attendee) counts the days checked in:
+      # day N is N whole days after the event's start, and a check-in before
+      # the start counts as the first day.
       - name: checkIn
         discriminator: "0x10"
         accounts: [checkInAuthority, attendee, attendance, event, _, ?checkInConfig, _, _, systemProgram, _, registration]
+      # A one-off check-in that marks the registration itself (with a
+      # timestamp) and adds no day to the attendance account. Used three times,
+      # on V4's second day.
+      - name: eventCheckIn
+        discriminator: "0x05"
+        accounts: [checkInAuthority, attendee, registration, event, _, ?checkInConfig, _, _, systemProgram, _, attendance]
 
       - name: createProfile
         discriminator: "0x1c"

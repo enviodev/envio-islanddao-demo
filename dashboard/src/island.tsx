@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { UserRef } from "./api";
-import { daysBetween, num, shortDay, solscanTx, userName, utcDay, weekday } from "./format";
+import type { EventTime, UserRef } from "./api";
+import { eventDays, localDay, num, shortDay, solscanTx, userName, weekday } from "./format";
 
 /** A gradient derived from the wallet, kept to island colours (lagoon to palm, with the odd sunset). */
 function walletGradient(address: string) {
@@ -21,24 +21,21 @@ export function Avatar({ user, size = 32 }: { user: UserRef; size?: number }) {
   return <span className="avatar" aria-hidden style={{ width: size, height: size, background: walletGradient(user.id) }} />;
 }
 
-/** The event's calendar, one tile per day, shaded by how many islanders checked in. */
+/** The event's calendar, one tile per event day, shaded by how many islanders checked in. */
 export function IslandCalendar({
-  startTime,
-  endTime,
+  event,
   days,
   now,
 }: {
-  startTime: number;
-  endTime: number;
+  event: EventTime;
   days: { day: string; checkIns: number; firstTimers: number }[];
   now: number;
 }) {
   const counts = new Map(days.map((d) => [d.day, d]));
-  const first = [utcDay(startTime), days[0]?.day].filter(Boolean).sort()[0]!;
-  const last = utcDay(endTime);
-  const today = utcDay(now);
+  const all = eventDays(event);
+  const first = all[0];
+  const today = localDay(now, event.utcOffsetMinutes);
   const max = Math.max(1, ...days.map((d) => d.checkIns));
-  const all = daysBetween(first, last);
   // Pad the first row so columns line up with weekdays (Mon first).
   const lead = (new Date(`${first}T00:00:00Z`).getUTCDay() + 6) % 7;
   const [hover, setHover] = useState<string>();
@@ -88,7 +85,7 @@ export function IslandCalendar({
               · {h ? `${num(h.checkIns)} check-ins, ${num(h.firstTimers)} first-timers` : hover > today ? "coming up" : "no check-ins"}
             </>
           ) : (
-            "Hover a day for details"
+            "Tap or hover a day for details"
           )}
         </span>
         <span className="scale" aria-hidden>
@@ -130,7 +127,7 @@ export function Passport({
     <article className="passport">
       <header>
         <span className="passport-kicker">Island passport</span>
-        <span className={`passport-status status-${status.toLowerCase()}`}>{status}</span>
+        <span className={`badge status-${status.toLowerCase()}`}>{status}</span>
       </header>
       <div className="passport-holder">
         <Avatar user={user} size={52} />
@@ -166,7 +163,13 @@ export function Passport({
         })}
       </div>
       <footer>
-        <b>{stamped.size}</b> of {event.days.length} island days stamped
+        {event.days.length ? (
+          <>
+            <b>{stamped.size}</b> of {event.days.length} island days stamped. Each stamp links to its check-in transaction.
+          </>
+        ) : (
+          "Stamps appear here once the edition's first check-ins land."
+        )}
       </footer>
     </article>
   );

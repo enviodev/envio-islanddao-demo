@@ -11,21 +11,48 @@ export const userName = (u: UserRef) => u.displayName ?? (u.xHandle ? `@${u.xHan
 export const solscanTx = (sig: string) => `https://solscan.io/tx/${sig}`;
 export const solscanAccount = (a: string) => `https://solscan.io/account/${a}`;
 
-export const dateRange = (start: number, end: number) => {
-  const fmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-  const year = new Date(end * 1000).getUTCFullYear();
-  return `${fmt.format(start * 1000)} – ${fmt.format(end * 1000)}, ${year}`;
+/** "UTC+7", "UTC-3", "UTC+5:30" */
+export const tzLabel = (offsetMinutes: number) => {
+  if (!offsetMinutes) return "UTC";
+  const sign = offsetMinutes > 0 ? "+" : "−";
+  const abs = Math.abs(offsetMinutes);
+  return `UTC${sign}${Math.floor(abs / 60)}${abs % 60 ? `:${String(abs % 60).padStart(2, "0")}` : ""}`;
 };
 
-export const dateTime = (t: number) =>
-  new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: "UTC",
-    timeZoneName: "short",
-  }).format(t * 1000);
+/** Formats in the event's own timezone by shifting the instant and reading it as UTC. */
+const local = (t: number, offsetMinutes: number, opts: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat("en-US", { ...opts, timeZone: "UTC" }).format((t + offsetMinutes * 60) * 1000);
+
+export const dateRange = (start: number, end: number, offsetMinutes = 0) => {
+  const fmt = { month: "short", day: "numeric" } as const;
+  const year = local(end, offsetMinutes, { year: "numeric" });
+  return `${local(start, offsetMinutes, fmt)} – ${local(end, offsetMinutes, fmt)}, ${year}`;
+};
+
+/** "Jun 8, 09:30 UTC+7": a moment in the event's local time. */
+export const dateTime = (t: number, offsetMinutes = 0) =>
+  `${local(t, offsetMinutes, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })} ${tzLabel(offsetMinutes)}`;
+
+export const shortDate = (t: number, offsetMinutes = 0) => local(t, offsetMinutes, { month: "short", day: "numeric", year: "numeric" });
+
+/** "09:30" in the event's local time. */
+export const clockTime = (t: number, offsetMinutes = 0) =>
+  local(t, offsetMinutes, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+export const localDay = (t: number, offsetMinutes = 0) => utcDay(t + offsetMinutes * 60);
+
+/**
+ * The event's days as the program counts them (24h from the start time), each
+ * labelled with its local date.
+ */
+export const eventDays = (e: { startTime: number; endTime: number; utcOffsetMinutes: number }) => {
+  const count = Math.max(1, Math.ceil((e.endTime - e.startTime) / 86_400));
+  return Array.from({ length: count }, (_, i) => localDay(e.startTime + i * 86_400, e.utcOffsetMinutes));
+};
+
+/** 1-based day of the event at `now`, clamped to the event. */
+export const dayOfEvent = (e: { startTime: number; endTime: number; utcOffsetMinutes: number }, now: number) =>
+  Math.min(eventDays(e).length, Math.max(1, Math.floor((now - e.startTime) / 86_400) + 1));
 
 export const ago = (t: number, now = Date.now() / 1000) => {
   const s = Math.max(0, Math.round(now - t));
@@ -57,3 +84,18 @@ export const usdc = (baseUnits: string | number | bigint) =>
   `$${(Number(baseUnits) / 1e6).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 
 export const isLive = (e: { startTime: number; endTime: number }, now: number) => now >= e.startTime && now <= e.endTime;
+
+/** Base58, 32 to 44 characters: the shape of a Solana address. */
+export const isWallet = (s: string) => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
+
+/** "IslandDAO V4 - Thailand" -> "V4 · Thailand" */
+export const editionName = (name: string) => name.replace("IslandDAO ", "").replace(" - ", " · ");
+
+export const plural = (n: number, one: string, many = `${one}s`) => `${num(n)} ${n === 1 ? one : many}`;
+
+/** 1 -> "1st", 12 -> "12th", 22 -> "22nd" */
+export const ordinal = (n: number) => {
+  const tens = n % 100;
+  const suffix = tens >= 11 && tens <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
+  return `${n}${suffix}`;
+};
