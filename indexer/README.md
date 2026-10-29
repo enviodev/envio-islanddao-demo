@@ -63,7 +63,3 @@ pnpm test
 | `src/handlers/profiles.ts` | Profiles and attested X handles |
 | `src/handlers/tickets.ts` | V4 weekly pass tiers and purchases |
 | `src/shared.ts` | Field selection, ids, labels, event-day math, the `updateEvent` decoder, the global stats row |
-
-Envio 3.14.0 crashes when a handler selects `fields.log` and HyperSync returns
-an instruction with no logs. This program emits no logs we need, so the
-handlers don't select them.

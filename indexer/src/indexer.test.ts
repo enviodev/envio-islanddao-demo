@@ -205,6 +205,7 @@ describe("registration lifecycle", () => {
       status: "Confirmed",
       reviewedBy: ADMIN,
       timesRegistered: 2,
+      registrationNumber: 1,
       checkInCount: 3,
       firstCheckInAt: START - 7 * HOUR,
       arrivedAt: START - 7 * HOUR + 60,
@@ -223,6 +224,7 @@ describe("registration lifecycle", () => {
       ["2026-10-20", 2, 1, 0],
       ["2026-10-21", 3, 1, 0],
     ]);
+    t.expect(days.every((d) => d.firstIn_id === ATTENDEE)).toBe(true);
 
     t.expect(await indexer.GlobalStats.getOrThrow("solana")).toMatchObject({
       events: 1,

@@ -115,6 +115,8 @@ type Registration {
   status: RegistrationStatus!
   registeredAt: Int!
   registeredTx: String!
+  "Order of sign-up for the event: 1 for the first registration. Kept when the attendee re-registers."
+  registrationNumber: Int!
   reviewedAt: Int
   reviewedBy: String
   cancelledAt: Int
@@ -156,6 +158,8 @@ type EventDay {
   checkIns: Int!
   "Attendees whose first check-in at the event was this day."
   firstTimers: Int!
+  "The first islander to check in that day."
+  firstIn: User!
 }
 
 type TicketTier {

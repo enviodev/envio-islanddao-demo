@@ -45,6 +45,7 @@ indexer.onInstruction(
       status,
       registeredAt: time,
       registeredTx: instruction.transaction.signature,
+      registrationNumber: existing?.registrationNumber ?? event.registrationCount + 1,
       reviewedAt: undefined,
       reviewedBy: undefined,
       cancelledAt: undefined,
@@ -182,6 +183,7 @@ indexer.onInstruction(
       day,
       checkIns: 0,
       firstTimers: 0,
+      firstIn_id: user.id,
     });
     context.EventDay.set({
       ...eventDay,
