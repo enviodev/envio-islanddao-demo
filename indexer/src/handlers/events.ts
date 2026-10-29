@@ -1,5 +1,13 @@
 import { indexer, type SvmInstruction, type SvmOnSlotContext } from "envio";
-import { categoryLabel, getStats, withArgs } from "../shared.js";
+import {
+  categoryLabel,
+  decodeEventUpdate,
+  getStats,
+  statusLabel,
+  utcOffsetFromTail,
+  withArgs,
+  withData,
+} from "../shared.js";
 
 indexer.onInstruction(
   { program: "IslandEvents", instruction: "createOrganization", fields: withArgs },
@@ -40,13 +48,16 @@ const createEvent = async ({
     sessionCount: 0,
     registrationCount: 0,
     pendingCount: 0,
-    approvedCount: 0,
+    confirmedCount: 0,
     rejectedCount: 0,
     cancelledCount: 0,
     checkInCount: 0,
     uniqueAttendeeCount: 0,
     lastCheckInAt: undefined,
     parent_id: undefined,
+    requiresApproval: false,
+    editCount: 0,
+    updatedAt: undefined,
     ...existing,
     id,
     organization_id: accounts.organization.address,
@@ -60,8 +71,12 @@ const createEvent = async ({
     longitude: hasCoordinates ? args.longitude / 1e6 : undefined,
     category: args.category,
     categoryLabel: categoryLabel(args.category),
+    // New events start out scheduled (the account's status byte reads 2).
+    status: 2,
+    statusLabel: statusLabel(2),
     startTime: Number(args.startTime),
     endTime: Number(args.endTime),
+    utcOffsetMinutes: utcOffsetFromTail(args.tail),
     creator: accounts.authority.address,
     createdAt: instruction.block.time,
     createdTx: instruction.transaction.signature,
@@ -94,9 +109,78 @@ indexer.onInstruction(
       return;
     }
     if (child.parent_id === parent.id) return;
-    context.Event.set({ ...child, parent_id: parent.id });
+    // A few sessions were created without their own UTC offset; they happen where the main event does.
+    const utcOffsetMinutes = child.utcOffsetMinutes || parent.utcOffsetMinutes;
+    context.Event.set({ ...child, parent_id: parent.id, utcOffsetMinutes });
     context.Event.set({ ...parent, sessionCount: parent.sessionCount + 1 });
     const stats = await getStats(context);
     context.GlobalStats.set({ ...stats, sessions: stats.sessions + 1 });
+  },
+);
+
+indexer.onInstruction(
+  { program: "IslandEvents", instruction: "updateEvent", fields: withData },
+  async ({ instruction, context }) => {
+    const event = await context.Event.get(instruction.accounts.event.address);
+    if (!event) {
+      context.log.warn(`updateEvent for unknown event ${instruction.accounts.event.address}`);
+      return;
+    }
+    const { update: u, complete } = decodeEventUpdate(instruction.data);
+    if (!complete) {
+      context.log.warn(`updateEvent with an unknown field set in ${instruction.transaction.signature}; applied the fields before it`);
+    }
+    const coordinates =
+      u.latitude !== undefined && u.longitude !== undefined
+        ? u.latitude === 0 && u.longitude === 0
+          ? { latitude: undefined, longitude: undefined }
+          : { latitude: u.latitude / 1e6, longitude: u.longitude / 1e6 }
+        : {};
+    context.Event.set({
+      ...event,
+      name: u.name ?? event.name,
+      description: u.description ?? event.description,
+      imageUrl: u.imageUrl ?? event.imageUrl,
+      link: u.link ?? event.link,
+      location: u.location ?? event.location,
+      venue: u.venue ?? event.venue,
+      ...(u.category !== undefined && { category: u.category, categoryLabel: categoryLabel(u.category) }),
+      ...(u.status !== undefined && { status: u.status, statusLabel: statusLabel(u.status) }),
+      startTime: u.startTime ?? event.startTime,
+      endTime: u.endTime ?? event.endTime,
+      utcOffsetMinutes: u.utcOffsetMinutes ?? event.utcOffsetMinutes,
+      ...coordinates,
+      editCount: event.editCount + 1,
+      updatedAt: instruction.block.time,
+    });
+  },
+);
+
+indexer.onInstruction(
+  { program: "IslandEvents", instruction: "setEventImage", fields: withArgs },
+  async ({ instruction, context }) => {
+    const event = await context.Event.get(instruction.accounts.event.address);
+    if (!event) {
+      context.log.warn(`setEventImage for unknown event ${instruction.accounts.event.address}`);
+      return;
+    }
+    context.Event.set({
+      ...event,
+      imageUrl: instruction.args.imageUrl,
+      editCount: event.editCount + 1,
+      updatedAt: instruction.block.time,
+    });
+  },
+);
+
+indexer.onInstruction(
+  { program: "IslandEvents", instruction: "setRequiresApproval", fields: withArgs },
+  async ({ instruction, context }) => {
+    const event = await context.Event.get(instruction.accounts.event.address);
+    if (!event) {
+      context.log.warn(`setRequiresApproval for unknown event ${instruction.accounts.event.address}`);
+      return;
+    }
+    context.Event.set({ ...event, requiresApproval: instruction.args.requiresApproval });
   },
 );

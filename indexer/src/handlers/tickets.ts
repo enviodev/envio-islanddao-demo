@@ -30,7 +30,7 @@ indexer.onInstruction(
       return;
     }
     const buyer = await loadUser(context, accounts.buyer.address, time);
-    context.User.set(buyer);
+    context.User.set({ ...buyer, passCount: buyer.passCount + 1, passSpend: buyer.passSpend + tier.price });
     context.PassPurchase.set({
       id: accounts.pass.address,
       tier_id: tier.id,

@@ -1,6 +1,12 @@
+"""
+Where a registration stands, as the program stores it. An event without an
+approval step confirms every registration straight away.
+"""
 enum RegistrationStatus {
-  Registered
-  Approved
+  "Waiting for an organizer to approve it."
+  Pending
+  "Accepted: approved by an organizer, or automatically when the event has no approval step."
+  Confirmed
   Rejected
   Cancelled
 }
@@ -50,8 +56,18 @@ type Event {
   longitude: Float
   category: Int!
   categoryLabel: String!
+  "The program's status byte: 2 scheduled, 3 completed, 4 cancelled."
+  status: Int!
+  statusLabel: String!
   startTime: Int! @index
   endTime: Int!
+  "The event's UTC offset, in minutes. Day boundaries and local dates use it. The few sessions created without one take their main event's."
+  utcOffsetMinutes: Int!
+  "Registrations wait for an organizer's approval (V5) instead of being confirmed on the spot (V4)."
+  requiresApproval: Boolean!
+  "Edits made after creation: details, times, status or image."
+  editCount: Int!
+  updatedAt: Int
   creator: String!
   createdAt: Int!
   createdTx: String!
@@ -59,11 +75,11 @@ type Event {
   "Distinct registrations ever opened, whatever their current status."
   registrationCount: Int!
   pendingCount: Int!
-  approvedCount: Int!
+  confirmedCount: Int!
   rejectedCount: Int!
   cancelledCount: Int!
   checkInCount: Int!
-  "Attendees with at least one check-in."
+  "Attendees with at least one daily check-in, the same as the program's attendance accounts."
   uniqueAttendeeCount: Int!
   lastCheckInAt: Int
   registrations: [Registration!]! @derivedFrom(field: "event")
@@ -83,8 +99,12 @@ type User {
   firstSeenAt: Int!
   registrationCount: Int!
   checkInCount: Int!
+  passCount: Int!
+  "USDC base units (6 decimals) spent on passes."
+  passSpend: BigInt!
   registrations: [Registration!]! @derivedFrom(field: "user")
   checkIns: [CheckIn!]! @derivedFrom(field: "user")
+  passes: [PassPurchase!]! @derivedFrom(field: "buyer")
 }
 
 "Keyed by the registration PDA, which is reused when an attendee re-registers."
@@ -98,6 +118,8 @@ type Registration {
   reviewedAt: Int
   reviewedBy: String
   cancelledAt: Int
+  "The one-off event check-in (instruction 0x05), separate from the daily check-ins."
+  arrivedAt: Int
   timesRegistered: Int!
   checkInCount: Int!
   firstCheckInAt: Int
@@ -114,7 +136,9 @@ type CheckIn {
   attendance: String!
   checkInAuthority: String!
   timestamp: Int! @index
-  "UTC calendar day, YYYY-MM-DD."
+  "Day of the event as the program counts it: whole days since the start, plus one. Early check-ins count as day 1."
+  eventDay: Int!
+  "The local calendar date of that event day, YYYY-MM-DD."
   day: String!
   "1 for the attendee's first check-in at this event, 2 for the second day, ..."
   dayNumber: Int!
@@ -125,6 +149,9 @@ type CheckIn {
 type EventDay {
   id: ID!
   event: Event!
+  "Day of the event, 1-based, as the program counts it."
+  eventDay: Int!
+  "Local calendar date, YYYY-MM-DD."
   day: String! @index
   checkIns: Int!
   "Attendees whose first check-in at the event was this day."
