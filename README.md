@@ -145,9 +145,10 @@ push to `main` that touches it.
    served at `https://enviodev.github.io/envio-islanddao-demo/`.
 
 The dashboard's GraphQL endpoint is hardcoded as `GRAPHQL_URL` in
-`dashboard/src/api.ts`. Each Envio Cloud deployment has its own URL, so after a
-deployment with schema changes, set it to the output of
-`npx envio-cloud deployment endpoint islanddao <commit>`.
+`dashboard/src/api.ts`. On the development tier each deployment has its own
+URL and lives for up to 30 days, so after deploying an indexer change, set it
+to the output of `npx envio-cloud deployment endpoint islanddao <commit>`.
+A production tier gives the indexer a static endpoint instead.
 
 Pages only serves static files, so the build writes `analytics/`, `leaderboard/`
 and `me/` copies of the app and a `404.html` fallback for dynamic paths such as
