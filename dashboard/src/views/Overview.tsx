@@ -19,7 +19,7 @@ export function Overview({ eventId, edition, now }: { eventId: string; edition?:
   const totalDays = eventDays(event).length;
   const today = dayOfEvent(event, now);
   const progress = live ? today / totalDays : now > event.endTime ? 1 : 0;
-  const islandersRoute: Route = { view: "islanders", edition };
+  const leaderboardRoute: Route = { view: "leaderboard", edition };
   const analyticsRoute: Route = { view: "analytics", edition };
 
   return (
@@ -36,8 +36,8 @@ export function Overview({ eventId, edition, now }: { eventId: string; edition?:
             {event.lastCheckInAt ? <>last check-in {ago(event.lastCheckInAt, now)}</> : "no check-ins yet"}
           </p>
           <div className="hero-actions">
-            <Link to={islandersRoute} className="primary-button">
-              Meet the {num(event.uniqueAttendeeCount)} islanders →
+            <Link to={leaderboardRoute} className="primary-button">
+              See the leaderboard →
             </Link>
             <Link to={analyticsRoute} className="ghost-button">
               Event analytics
@@ -116,8 +116,8 @@ export function Overview({ eventId, edition, now }: { eventId: string; edition?:
           title="Island regulars"
           subtitle="Most days checked in. Each dot is an island day: a day anyone checked in."
           aside={
-            <Link to={islandersRoute} className="text-link">
-              Everyone →
+            <Link to={leaderboardRoute} className="text-link">
+              Full leaderboard →
             </Link>
           }
         >
@@ -155,7 +155,7 @@ export function Overview({ eventId, edition, now }: { eventId: string; edition?:
         </div>
       </Section>
 
-      <EnvioCta title="This island runs on Envio" />
+      <EnvioCta context="Every number on this page comes from an Envio indexer over IslandDAO's Solana program, live." />
     </>
   );
 }

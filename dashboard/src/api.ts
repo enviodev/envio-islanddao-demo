@@ -134,16 +134,7 @@ export type Session = EventTime & {
 export type AnalyticsData = {
   _meta: { progressBlock: number; isReady: boolean }[];
   chain_metadata: { block_height: number }[];
-  GlobalStats: {
-    users: number;
-    profiles: number;
-    registrations: number;
-    checkIns: number;
-    events: number;
-    sessions: number;
-    passesSold: number;
-    passRevenue: string;
-  }[];
+  GlobalStats: { users: number; registrations: number; checkIns: number; events: number }[];
   Event_by_pk:
     | (EventTime & {
         id: string;
@@ -167,8 +158,6 @@ export type AnalyticsData = {
     | null;
   EventDay: DayRow[];
   registrations: { status: string; checkInCount: number; registeredAt: number }[];
-  recent: RecentCheckIn[];
-  top: { checkInCount: number; firstCheckInAt: number; user: UserRef }[];
   sessions: Session[];
   tiers: { id: string; name: string; dates: string; price: string; sold: number; maxSupply: string | null }[];
   passes: { id: string; price: string; timestamp: number; txSignature: string; tier: { name: string }; buyer: UserRef }[];
@@ -178,7 +167,7 @@ export const ANALYTICS_QUERY = /* GraphQL */ `
   query Analytics($event: String!) {
     _meta { progressBlock isReady }
     chain_metadata { block_height }
-    GlobalStats { users profiles registrations checkIns events sessions passesSold passRevenue }
+    GlobalStats { users registrations checkIns events }
     Event_by_pk(id: $event) {
       id name location venue startTime endTime utcOffsetMinutes createdTx requiresApproval editCount updatedAt
       sessionCount registrationCount pendingCount confirmedCount rejectedCount cancelledCount
@@ -186,14 +175,6 @@ export const ANALYTICS_QUERY = /* GraphQL */ `
     }
     EventDay(where: { event_id: { _eq: $event } }, order_by: { day: asc }) { day eventDay checkIns firstTimers }
     registrations: Registration(where: { event_id: { _eq: $event } }, limit: 5000) { status checkInCount registeredAt }
-    recent: CheckIn(where: { event_id: { _eq: $event } }, order_by: { timestamp: desc }, limit: 10) {
-      id timestamp eventDay dayNumber txSignature user { ${USER_FIELDS} }
-    }
-    top: Registration(
-      where: { event_id: { _eq: $event }, checkInCount: { _gt: 0 } }
-      order_by: [{ checkInCount: desc }, { firstCheckInAt: asc }]
-      limit: 10
-    ) { checkInCount firstCheckInAt user { ${USER_FIELDS} } }
     sessions: Event(where: { parent_id: { _eq: $event } }, order_by: { startTime: asc }) {
       id name categoryLabel statusLabel startTime endTime utcOffsetMinutes venue editCount
     }
@@ -204,31 +185,33 @@ export const ANALYTICS_QUERY = /* GraphQL */ `
   }
 `;
 
-// ---------- Islanders: everyone at an edition ----------
+// ---------- Leaderboard: everyone at an edition, ranked ----------
 
-export type IslanderRow = {
+export type LeaderboardRow = {
   id: string;
   status: string;
   registeredAt: number;
+  registrationNumber: number;
   checkInCount: number;
   firstCheckInAt: number | null;
-  lastCheckInAt: number | null;
-  user: UserRef & { passes: { price: string }[] };
+  user: UserRef;
 };
 
-export type IslandersData = {
+export type LeaderboardData = {
   Event_by_pk: (EventTime & { id: string; name: string; requiresApproval: boolean }) | null;
-  EventDay: { day: string }[];
-  Registration: IslanderRow[];
+  EventDay: { day: string; firstIn_id: string }[];
+  CheckIn: { user_id: string; day: string; timestamp: number }[];
+  Registration: LeaderboardRow[];
 };
 
-export const ISLANDERS_QUERY = /* GraphQL */ `
-  query Islanders($event: String!) {
+export const LEADERBOARD_QUERY = /* GraphQL */ `
+  query Leaderboard($event: String!) {
     Event_by_pk(id: $event) { id name startTime endTime utcOffsetMinutes requiresApproval }
-    EventDay(where: { event_id: { _eq: $event } }, order_by: { day: asc }) { day }
+    EventDay(where: { event_id: { _eq: $event } }, order_by: { day: asc }) { day firstIn_id }
+    CheckIn(where: { event_id: { _eq: $event } }, limit: 20000) { user_id day timestamp }
     Registration(where: { event_id: { _eq: $event } }, limit: 5000) {
-      id status registeredAt checkInCount firstCheckInAt lastCheckInAt
-      user { ${USER_FIELDS} passes(where: { event_id: { _eq: $event } }) { price } }
+      id status registeredAt registrationNumber checkInCount firstCheckInAt
+      user { ${USER_FIELDS} }
     }
   }
 `;
@@ -237,8 +220,10 @@ export const ISLANDERS_QUERY = /* GraphQL */ `
 
 export type ProfileRegistration = {
   id: string;
+  user_id: string;
   status: string;
   registeredAt: number;
+  registrationNumber: number;
   reviewedAt: number | null;
   arrivedAt: number | null;
   checkInCount: number;
@@ -253,7 +238,8 @@ export type ProfileRegistration = {
     requiresApproval: boolean;
     checkInCount: number;
     uniqueAttendeeCount: number;
-    days: { day: string; eventDay: number; checkIns: number }[];
+    registrationCount: number;
+    days: { day: string; eventDay: number; checkIns: number; firstIn_id: string }[];
     /** Everyone who checked in, to rank this islander against. */
     attendees: { checkInCount: number; firstCheckInAt: number }[];
   };
@@ -281,22 +267,18 @@ export type Profile = UserRef & {
   passes: ProfilePass[];
 };
 
-export type ProfileData = {
-  User_by_pk: Profile | null;
-  /** Pass revenue per edition, to put this islander's spend in context. */
-  revenue: { event_id: string; price: string }[];
-};
+export type ProfileData = { User_by_pk: Profile | null };
 
 export const PROFILE_QUERY = /* GraphQL */ `
   query Profile($id: String!) {
     User_by_pk(id: $id) {
       ${USER_FIELDS} bio website profile firstSeenAt passCount passSpend
       registrations(order_by: { registeredAt: desc }) {
-        id status registeredAt reviewedAt arrivedAt checkInCount firstCheckInAt
+        id user_id status registeredAt registrationNumber reviewedAt arrivedAt checkInCount firstCheckInAt
         event {
-          id name location startTime endTime utcOffsetMinutes requiresApproval checkInCount uniqueAttendeeCount
+          id name location startTime endTime utcOffsetMinutes requiresApproval checkInCount uniqueAttendeeCount registrationCount
           categoryLabel parent { name }
-          days(order_by: { day: asc }) { day eventDay checkIns }
+          days(order_by: { day: asc }) { day eventDay checkIns firstIn_id }
           attendees: registrations(where: { checkInCount: { _gt: 0 } }) { checkInCount firstCheckInAt }
         }
         checkIns(order_by: { timestamp: asc }) { day eventDay timestamp txSignature }
@@ -307,7 +289,6 @@ export const PROFILE_QUERY = /* GraphQL */ `
         event { id name utcOffsetMinutes }
       }
     }
-    revenue: PassPurchase(limit: 5000) { event_id price }
   }
 `;
 

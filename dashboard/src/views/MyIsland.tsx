@@ -25,8 +25,8 @@ export function MyIsland() {
         <div className="kicker">My island</div>
         <h1>Your IslandDAO, on-chain</h1>
         <p className="muted">
-          Paste the wallet you registered with, or search for your name or X handle. Your profile shows your passports,
-          achievements and passes. Nothing to connect or sign.
+          Paste the wallet you registered with, or search for your name or X handle. Your profile shows your passports, rank
+          and achievements. Nothing to connect or sign.
         </p>
         <form className="search" onSubmit={submit}>
           <input
@@ -58,10 +58,7 @@ export function MyIsland() {
         </Section>
       )}
 
-      <EnvioCta title="Your passport is an API call away">
-        Your stamps are read from Solana by an Envio HyperIndex indexer and served as GraphQL. Get a free API token and you
-        can index any program the same way: check-ins, swaps, NFTs, anything.
-      </EnvioCta>
+      <EnvioCta context="Profiles are read straight from Solana by an Envio indexer. No sign-up or wallet connection needed to look yourself up." />
     </>
   );
 }

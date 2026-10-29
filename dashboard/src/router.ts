@@ -3,13 +3,13 @@ import { useEffect, useState, type MouseEvent } from "react";
 /** Paths, relative to the app's base:
  *    /                    overview of the latest edition
  *    /analytics           event analytics
- *    /islanders           everyone at the edition
- *    /v4, /v4/analytics, /v4/islanders   the same for an earlier edition
+ *    /leaderboard         everyone at the edition, ranked
+ *    /v4, /v4/analytics, /v4/leaderboard  the same for an earlier edition
  *    /islander/<wallet>   one islander's profile, across editions
  *    /me                  find your own profile
- * Older links (/organizers, /me/<wallet>, #hash URLs) still resolve.
+ * Older links (/organizers, /islanders, /me/<wallet>, #hash URLs) still resolve.
  */
-export type EditionView = "overview" | "analytics" | "islanders";
+export type EditionView = "overview" | "analytics" | "leaderboard";
 export type Route = { view: EditionView; edition?: string } | { view: "islander"; wallet: string } | { view: "me" };
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -17,7 +17,12 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 /** "IslandDAO V4 - Thailand" -> "v4" */
 export const editionSlug = (eventName: string) => eventName.match(/\bV(\d+)\b/i)?.[0].toLowerCase() ?? eventName.toLowerCase().replace(/\W+/g, "-");
 
-const editionViews: Record<string, EditionView> = { analytics: "analytics", organizers: "analytics", islanders: "islanders" };
+const editionViews: Record<string, EditionView> = {
+  analytics: "analytics",
+  organizers: "analytics",
+  leaderboard: "leaderboard",
+  islanders: "leaderboard",
+};
 
 export function parseRoute(pathname: string): Route {
   const rel = pathname.startsWith(BASE) ? pathname.slice(BASE.length) : pathname;

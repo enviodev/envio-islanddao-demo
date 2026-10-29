@@ -14,7 +14,6 @@ import {
   plural,
   shortAddress,
   solscanAccount,
-  solscanTx,
   tzLabel,
   usdc,
 } from "../format";
@@ -98,7 +97,7 @@ export function Analytics({ eventId, edition, now }: { eventId: string; edition?
   const meta = data._meta[0];
   const head = data.chain_metadata[0]?.block_height;
   const g = data.GlobalStats[0];
-  const islanders: Route = { view: "islanders", edition };
+  const leaderboard: Route = { view: "leaderboard", edition };
   const startDay = eventDays(event)[0];
 
   return (
@@ -160,69 +159,17 @@ export function Analytics({ eventId, edition, now }: { eventId: string; edition?
           {signups.length ? <Signups data={signups} startDay={startDay} /> : <p className="muted">No registrations yet.</p>}
         </Section>
 
-        <Section title="Days attended" subtitle="Attendees by number of days checked in.">
-          {histogram.length ? <Histogram data={histogram} xLabel="days checked in" /> : <p className="muted">No check-ins yet.</p>}
-        </Section>
-
-        <Section
-          title="Most days checked in"
-          subtitle="Ties go to whoever showed up first."
-          aside={
-            <Link to={islanders} className="text-link">
-              All islanders →
-            </Link>
-          }
-        >
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Attendee</th>
-                <th className="num">Days</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.top.map((r, i) => (
-                <tr key={r.user.id}>
-                  <td className="muted">{i + 1}</td>
-                  <td>
-                    <Person user={r.user} />
-                  </td>
-                  <td className="num">{num(r.checkInCount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Section>
-
         <div className="span-2">
-          <Section title="Latest check-ins" subtitle="Most recent first. Times are local; the arrow opens the transaction.">
-            <table>
-              <thead>
-                <tr>
-                  <th>Attendee</th>
-                  <th className="num" title="Day of the event, counted from its start">Event day</th>
-                  <th className="num" title="How many days this attendee has checked in, including this one">Attendee's day</th>
-                  <th className="num">When</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.recent.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <Person user={c.user} />
-                    </td>
-                    <td className="num">{c.eventDay}</td>
-                    <td className="num">#{c.dayNumber}</td>
-                    <td className="num">
-                      <a href={solscanTx(c.txSignature)} target="_blank" rel="noreferrer" title={dateTime(c.timestamp, event.utcOffsetMinutes)}>
-                        {ago(c.timestamp, now)} ↗
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <Section
+            title="Days attended"
+            subtitle="Attendees by number of days checked in."
+            aside={
+              <Link to={leaderboard} className="text-link">
+                Leaderboard →
+              </Link>
+            }
+          >
+            {histogram.length ? <Histogram data={histogram} xLabel="days checked in" /> : <p className="muted">No check-ins yet.</p>}
           </Section>
         </div>
 
@@ -338,16 +285,12 @@ export function Analytics({ eventId, edition, now }: { eventId: string; edition?
         </div>
         {g && (
           <div className="muted">
-            All time: {num(g.events)} events & sessions · {num(g.users)} wallets · {num(g.registrations)} registrations · {num(g.checkIns)} check-ins ·{" "}
-            {num(g.passesSold)} passes ({usdc(g.passRevenue)})
+            All editions: {num(g.events)} events & sessions · {num(g.users)} wallets · {num(g.registrations)} registrations · {num(g.checkIns)} check-ins
           </div>
         )}
       </section>
 
-      <EnvioCta title="Run analytics like this for your own event">
-        The data behind these charts comes from a HyperIndex indexer: a config file, a schema and a few TypeScript handlers.
-        HyperSync backfilled the whole program in minutes, and new check-ins show up within seconds.
-      </EnvioCta>
+      <EnvioCta context="These charts read from an Envio indexer over IslandDAO's Solana program, and update within seconds of each check-in." />
     </>
   );
 }

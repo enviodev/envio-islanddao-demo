@@ -1,20 +1,20 @@
 import { useEffect, useState } from "react";
 import { EVENTS_QUERY, usePolling, type MainEvent } from "./api";
-import { CollabLockup, LINKS, TokenButton } from "./brand";
+import { CollabLockup, LINKS, TryEnvioButton } from "./brand";
 import { editionName, isLive } from "./format";
 import { editionSlug, navigate, useRoute, type EditionView, type Route } from "./router";
 import { Link } from "./ui";
 import { Analytics } from "./views/Analytics";
 import { Islander } from "./views/Islander";
-import { Islanders } from "./views/Islanders";
+import { Leaderboard } from "./views/Leaderboard";
 import { MyIsland } from "./views/MyIsland";
 import { Overview } from "./views/Overview";
 
 const VIEWS = [
-  { id: "overview", label: "Overview" },
-  { id: "islanders", label: "Islanders" },
-  { id: "analytics", label: "Event analytics" },
-  { id: "me", label: "My island" },
+  { id: "overview", label: "Overview", short: "Overview" },
+  { id: "leaderboard", label: "Leaderboard", short: "Leaderboard" },
+  { id: "analytics", label: "Event analytics", short: "Analytics" },
+  { id: "me", label: "My island", short: "Me" },
 ] as const;
 
 // Same key as earlier versions, so a remembered wallet carries over.
@@ -47,7 +47,7 @@ function useNow(intervalMs = 1_000) {
 }
 
 const isEditionView = (r: Route): r is { view: EditionView; edition?: string } =>
-  r.view === "overview" || r.view === "analytics" || r.view === "islanders";
+  r.view === "overview" || r.view === "analytics" || r.view === "leaderboard";
 
 export function App() {
   const now = useNow();
@@ -83,13 +83,14 @@ export function App() {
       <header className="masthead">
         <div className="masthead-row">
           <CollabLockup />
-          <TokenButton label="Get an Envio API token" />
+          <TryEnvioButton />
         </div>
         <nav className="masthead-row">
           <div className="views" aria-label="Views">
             {VIEWS.map((v) => (
               <Link key={v.id} to={routeFor(v.id)} current={activeTab === v.id} className={activeTab === v.id ? "view active" : "view"}>
-                {v.label}
+                <span className="label-long">{v.label}</span>
+                <span className="label-short">{v.short}</span>
               </Link>
             ))}
           </div>
@@ -115,7 +116,7 @@ export function App() {
         {error && !data && <p className="error">Could not reach the indexer GraphQL API: {error}</p>}
         {route.view === "overview" && event && <Overview key={event.id} eventId={event.id} edition={current} now={now} />}
         {route.view === "analytics" && event && <Analytics key={event.id} eventId={event.id} edition={current} now={now} />}
-        {route.view === "islanders" && event && <Islanders key={event.id} eventId={event.id} now={now} />}
+        {route.view === "leaderboard" && event && <Leaderboard key={event.id} eventId={event.id} now={now} />}
         {route.view === "islander" && (
           <Islander key={route.wallet} wallet={route.wallet} now={now} isMine={route.wallet === mine} onClaim={claim(route.wallet)} />
         )}
@@ -132,11 +133,11 @@ export function App() {
           <a href={LINKS.envio} target="_blank" rel="noreferrer">
             Envio
           </a>
-          . Data indexed from Solana with HyperIndex.
+          . Live data from Solana, indexed by Envio.
         </span>
         <span>
-          <a href={LINKS.envioToken} target="_blank" rel="noreferrer">
-            Get an API token
+          <a href={LINKS.envioApp} target="_blank" rel="noreferrer">
+            Try Envio free
           </a>{" "}
           ·{" "}
           <a href={LINKS.envioDocs} target="_blank" rel="noreferrer">

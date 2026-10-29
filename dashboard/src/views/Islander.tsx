@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { achievementsFor, editionStats, type Achievement } from "../achievements";
+import { achievementsFor, editionStats, localSeconds, type Achievement, type AchievementGroup } from "../achievements";
 import { PROFILE_QUERY, usePolling, type Profile, type ProfileData, type ProfileRegistration } from "../api";
 import { EnvioCta } from "../brand";
 import {
@@ -10,7 +10,6 @@ import {
   plural,
   shortAddress,
   shortDate,
-  shortDay,
   solscanAccount,
   solscanTx,
   tzLabel,
@@ -20,16 +19,36 @@ import {
 import { Avatar, Passport } from "../island";
 import { Link, Loading, Section, Stat, StatusBadge } from "../ui";
 
+const GROUPS: AchievementGroup[] = ["Showing up", "Consistency", "Timing"];
+
 function Achievements({ list }: { list: Achievement[] }) {
   const earned = list.filter((a) => a.earned).length;
   return (
     <Section
       title="Achievements"
-      subtitle={`${earned} of ${list.length} unlocked. Every one is worked out from on-chain data; locked ones show what's left.`}
+      subtitle={`${earned} of ${list.length} unlocked, all worked out from on-chain data. Locked ones show what's left.`}
       id="achievements"
     >
+      {GROUPS.map((group) => {
+        // Unlocked first, then the rest in their usual order.
+        const items = list.filter((a) => a.group === group).sort((a, b) => Number(b.earned) - Number(a.earned));
+        return (
+          <div key={group} className="achievement-group">
+            <h3>
+              {group} <span>{items.filter((a) => a.earned).length} / {items.length}</span>
+            </h3>
+            <AchievementList items={items} />
+          </div>
+        );
+      })}
+    </Section>
+  );
+}
+
+function AchievementList({ items }: { items: Achievement[] }) {
+  return (
       <ul className="achievements">
-        {list.map((a) => (
+        {items.map((a) => (
           <li key={a.id} className={a.earned ? "achievement earned" : "achievement"}>
             <span className="achievement-icon" aria-hidden>
               {a.icon}
@@ -50,23 +69,24 @@ function Achievements({ list }: { list: Achievement[] }) {
           </li>
         ))}
       </ul>
-    </Section>
   );
 }
 
 /** The registration's life on-chain, oldest first. */
-function Timeline({ r }: { r: ProfileRegistration }) {
+function Timeline({ r, arrival }: { r: ProfileRegistration; arrival?: number }) {
   const tz = r.event.utcOffsetMinutes;
-  const steps: { label: string; at?: number; note?: string }[] = [{ label: "Registered", at: r.registeredAt }];
+  const steps: { label: string; at?: number; note?: string }[] = [
+    { label: "Registered", at: r.registeredAt, note: `sign-up #${r.registrationNumber} of ${num(r.event.registrationCount)}` },
+  ];
   // Timed steps after the registration and its review, in the order they happened.
-  const timed: { label: string; at: number }[] = [];
+  const timed: { label: string; at: number; note?: string }[] = [];
   if (r.status === "Pending") steps.push({ label: "Waiting for approval" });
   else if (r.status === "Rejected") steps.push({ label: "Rejected by the organizers", at: r.reviewedAt ?? undefined });
   else if (r.status === "Cancelled") steps.push({ label: "Cancelled" });
   else if (r.event.requiresApproval) steps.push({ label: "Approved", at: r.reviewedAt ?? undefined });
   else steps.push({ label: "Confirmed", note: "no approval step at this edition" });
   if (r.arrivedAt) timed.push({ label: "Checked in at the event desk", at: r.arrivedAt });
-  if (r.firstCheckInAt) timed.push({ label: "First daily check-in", at: r.firstCheckInAt });
+  if (r.firstCheckInAt) timed.push({ label: "First daily check-in", at: r.firstCheckInAt, note: arrival ? `islander #${arrival} to arrive` : undefined });
   const last = r.checkIns[r.checkIns.length - 1];
   if (last && r.checkIns.length > 1) timed.push({ label: `Latest check-in, day ${r.checkIns.length}`, at: last.timestamp });
   steps.push(...timed.sort((a, b) => a.at - b.at));
@@ -75,7 +95,7 @@ function Timeline({ r }: { r: ProfileRegistration }) {
       {steps.map((s) => (
         <li key={s.label}>
           <b>{s.label}</b>
-          <span className="muted">{s.at ? dateTime(s.at, tz) : s.note}</span>
+          <span className="muted">{[s.at && dateTime(s.at, tz), s.note].filter(Boolean).join(" · ")}</span>
         </li>
       ))}
     </ol>
@@ -88,12 +108,9 @@ function EditionStory({ user, r }: { user: Profile; r: ProfileRegistration }) {
   const others = r.event.attendees;
   const arrival = r.firstCheckInAt === null ? undefined : others.filter((a) => a.firstCheckInAt < r.firstCheckInAt!).length + 1;
   // Median time of day, local to the event.
-  const secondsIntoDay = r.checkIns.map((c) => (((c.timestamp + tz * 60) % 86_400) + 86_400) % 86_400).sort((a, b) => a - b);
+  const secondsIntoDay = r.checkIns.map((c) => localSeconds(c.timestamp, tz)).sort((a, b) => a - b);
   const median = secondsIntoDay[Math.floor(secondsIntoDay.length / 2)];
   const usualTime = median === undefined ? undefined : clockTime(median);
-  const busiest = r.event.days.filter((d) => s.attended.has(d.day)).sort((a, b) => b.checkIns - a.checkIns)[0];
-  const average = r.event.checkInCount / Math.max(1, r.event.uniqueAttendeeCount);
-  const topShare = s.rank && others.length ? Math.max(1, Math.round((s.rank / others.length) * 100)) : undefined;
   const edition = r.event.name.match(/\bV\d+\b/i)?.[0].toLowerCase();
 
   return (
@@ -105,7 +122,7 @@ function EditionStory({ user, r }: { user: Profile; r: ProfileRegistration }) {
       <div className="story">
         <div className="story-side">
           <Passport user={user} event={r.event} status={r.status} checkIns={r.checkIns} />
-          <Timeline r={r} />
+          <Timeline r={r} arrival={arrival} />
         </div>
         {r.checkInCount > 0 ? (
           <div className="story-stats">
@@ -124,24 +141,12 @@ function EditionStory({ user, r }: { user: Profile; r: ProfileRegistration }) {
               value={`#${s.rank}`}
               sub={
                 <>
-                  of {num(others.length)} islanders{topShare !== undefined && topShare <= 50 ? ` · top ${topShare}%` : ""} ·{" "}
-                  <Link to={{ view: "islanders", edition }}>see all</Link>
+                  of {num(others.length)} · <Link to={{ view: "leaderboard", edition }}>see the board</Link>
                 </>
               }
             />
-            <Stat label="Islander number" value={arrival ? `#${arrival}` : "–"} sub={`by first check-in, ${dateTime(r.firstCheckInAt!, tz)}`} />
-            <Stat label="Longest streak" value={plural(s.streak, "day")} sub="in a row, counting island days" />
-            <Stat label="Usual check-in" value={usualTime ?? "–"} sub={`median time, local (${tzLabel(tz)})`} />
-            <Stat
-              label="Vs. the average islander"
-              value={`${r.checkInCount >= average ? "+" : ""}${(r.checkInCount - average).toFixed(1)}`}
-              sub={`days (average is ${average.toFixed(1)})`}
-            />
-            {busiest && (
-              <p className="story-note">
-                Busiest day: <b>{shortDay(busiest.day)}</b>, with {num(busiest.checkIns)} islanders checking in.
-              </p>
-            )}
+            <Stat label="Longest streak" value={plural(s.streak.best, "day")} sub="island days in a row" />
+            <Stat label="Usual check-in" value={usualTime ?? "–"} sub={`median, local time (${tzLabel(tz)})`} />
           </div>
         ) : (
           <div className="story-stats story-empty">
@@ -161,63 +166,31 @@ function EditionStory({ user, r }: { user: Profile; r: ProfileRegistration }) {
   );
 }
 
-function Purchases({ user, revenue }: { user: Profile; revenue: ProfileData["revenue"] }) {
-  const byEvent = useMemo(() => {
-    const totals = new Map<string, number>();
-    for (const p of revenue) totals.set(p.event_id, (totals.get(p.event_id) ?? 0) + Number(p.price));
-    return totals;
-  }, [revenue]);
-  const editions = [...new Set(user.passes.map((p) => p.event.id))];
+/** Weekly passes were only sold at V4, so this shows up only for the islanders who bought one. */
+function Passes({ passes }: { passes: Profile["passes"] }) {
+  const total = passes.reduce((sum, p) => sum + Number(p.price), 0);
+  const editions = [...new Set(passes.map((p) => editionName(p.event.name)))].join(" and ");
   return (
-    <Section
-      title="Passes & spending"
-      subtitle={`${plural(user.passes.length, "weekly pass", "weekly passes")}, ${usdc(user.passSpend)} in USDC. Each pass is a Metaplex Core asset in this wallet.`}
-    >
-      <div className="stats compact">
-        {editions.map((id) => {
-          const mine = user.passes.filter((p) => p.event.id === id).reduce((sum, p) => sum + Number(p.price), 0);
-          const total = byEvent.get(id) ?? 0;
-          const name = user.passes.find((p) => p.event.id === id)!.event.name;
-          return (
-            <Stat
-              key={id}
-              label={`Spent at ${editionName(name)}`}
-              value={usdc(mine)}
-              sub={total ? `${Math.round((mine / total) * 100)}% of the edition's ${usdc(total)} pass revenue` : undefined}
-            />
-          );
-        })}
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Pass</th>
-            <th>Bought</th>
-            <th className="num">Paid</th>
-            <th className="num">On-chain</th>
-          </tr>
-        </thead>
-        <tbody>
-          {user.passes.map((p) => (
-            <tr key={p.id}>
-              <td>
-                {p.tier.name} <small className="muted">{p.tier.dates}</small>
-              </td>
-              <td className="muted">{shortDate(p.timestamp, p.event.utcOffsetMinutes)}</td>
-              <td className="num">{usdc(p.price)}</td>
-              <td className="num">
-                <a href={solscanTx(p.txSignature)} target="_blank" rel="noreferrer">
-                  tx ↗
-                </a>{" "}
-                ·{" "}
-                <a href={solscanAccount(p.asset)} target="_blank" rel="noreferrer">
-                  asset ↗
-                </a>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <Section title="Weekly passes" subtitle={`${plural(passes.length, "pass", "passes")} bought for ${editions}, ${usdc(total)} in USDC.`}>
+      <ul className="sessions">
+        {passes.map((p) => (
+          <li key={p.id}>
+            <span>
+              {p.tier.name} <small className="muted">{p.tier.dates}</small>
+            </span>
+            <small className="muted">
+              {usdc(p.price)} on {shortDate(p.timestamp, p.event.utcOffsetMinutes)} ·{" "}
+              <a href={solscanTx(p.txSignature)} target="_blank" rel="noreferrer">
+                tx ↗
+              </a>{" "}
+              ·{" "}
+              <a href={solscanAccount(p.asset)} target="_blank" rel="noreferrer">
+                pass ↗
+              </a>
+            </small>
+          </li>
+        ))}
+      </ul>
     </Section>
   );
 }
@@ -275,10 +248,7 @@ export function Islander({
   // Editions get a passport each; registrations for single sessions are listed on their own.
   const editions = useMemo(() => user?.registrations.filter((r) => !r.event.parent) ?? [], [user]);
   const sessions = useMemo(() => user?.registrations.filter((r) => r.event.parent) ?? [], [user]);
-  const achievements = useMemo(
-    () => (user ? achievementsFor({ ...user, registrations: editions }, now) : []),
-    [user, editions, Math.floor(now / 60)],
-  );
+  const achievements = useMemo(() => (user ? achievementsFor(editions, now) : []), [user, editions, Math.floor(now / 60)]);
 
   if (error && !data) return <p className="error">Could not reach the indexer: {error}</p>;
   if (!data) return <Loading>Looking up {shortAddress(wallet)}…</Loading>;
@@ -327,15 +297,6 @@ export function Islander({
           </div>
         </div>
         <div className="profile-side">
-          {earned.length > 0 && (
-            <a className="badge-strip" href="#achievements" title="Jump to achievements">
-              {earned.map((a) => (
-                <span key={a.id} title={a.title}>
-                  {a.icon}
-                </span>
-              ))}
-            </a>
-          )}
           <button className={isMine ? "ghost-button" : "primary-button"} onClick={() => onClaim(!isMine)}>
             {isMine ? "Not my wallet" : "This is me"}
           </button>
@@ -345,11 +306,10 @@ export function Islander({
         </div>
       </section>
 
-      <section className="stats">
-        <Stat label="Editions" value={num(attended.length)} sub={`checked in, of ${num(editions.length)} registered`} />
-        <Stat label="Days on the island" value={num(totalDays)} sub="across every edition" />
-        <Stat label="Achievements" value={`${earned.length} / ${achievements.length}`} sub="unlocked" accent />
-        <Stat label="Spent on passes" value={usdc(user.passSpend)} sub={user.passCount ? plural(user.passCount, "pass", "passes") : "no passes bought"} />
+      <section className="stats stats-3">
+        <Stat label="Editions" value={num(attended.length)} sub={`of ${num(editions.length)} registered`} />
+        <Stat label="Days on the island" value={num(totalDays)} sub="all editions" />
+        <Stat label="Achievements" value={`${earned.length} / ${achievements.length}`} sub={<a href="#achievements">see all</a>} accent />
       </section>
 
       <Achievements list={achievements} />
@@ -360,12 +320,9 @@ export function Islander({
 
       {sessions.length > 0 && <SessionSignups regs={sessions} />}
 
-      {user.passes.length > 0 && <Purchases user={user} revenue={data.revenue} />}
+      {user.passes.length > 0 && <Passes passes={user.passes} />}
 
-      <EnvioCta title="This profile is an API call away">
-        Every stamp, rank and achievement here is read from Solana by an Envio HyperIndex indexer and served as GraphQL. Get a free
-        API token and you can index any program the same way.
-      </EnvioCta>
+      <EnvioCta context="Every stamp, rank and achievement on this profile is read from Solana by an Envio indexer." />
     </>
   );
 }

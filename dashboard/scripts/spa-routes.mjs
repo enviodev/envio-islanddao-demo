@@ -7,7 +7,7 @@ import { join } from "node:path";
 const dist = new URL("../dist/", import.meta.url).pathname;
 const index = join(dist, "index.html");
 
-for (const route of ["analytics", "islanders", "organizers", "me"]) {
+for (const route of ["analytics", "leaderboard", "islanders", "organizers", "me"]) {
   mkdirSync(join(dist, route), { recursive: true });
   copyFileSync(index, join(dist, route, "index.html"));
 }

@@ -7,9 +7,9 @@ built on its GraphQL API.
 - `indexer/`: HyperIndex project (`ecosystem: svm`), scaffolded with `pnpx envio init svm`
 - `dashboard/`: Vite + React dashboard, branded IslandDAO × Envio, polling the indexer every 5 seconds. Every page has its own URL, and every face or name opens that islander's profile:
   - **Overview** (`/`, or `/v4` for an earlier edition): the showcase for everyone. Live islander count, the island calendar, the latest check-ins, regulars, and a wall of every attendee
-  - **Islanders** (`/islanders`, `/v4/islanders`): everyone at the edition, searchable by name, X handle or wallet, sortable by days, arrival or sign-up, filterable by status
-  - **Event analytics** (`/analytics`, `/v4/analytics`): KPIs, daily check-ins split into first-timers and returning, the registration funnel, sign-ups over time, the days-attended distribution, sessions with their on-chain status, pass sales and buyers
-  - **Islander profile** (`/islander/<wallet>`): a passport per edition with a stamp per day checked in, the registration's on-chain timeline, rank, streaks, usual check-in time, 12 achievements, and the passes they bought with what they spent
+  - **Leaderboard** (`/leaderboard`, `/v4/leaderboard`): a podium by days checked in, boards for the longest streak, the first one in each day and early risers, and everyone at the edition, searchable and filterable
+  - **Event analytics** (`/analytics`, `/v4/analytics`): KPIs, daily check-ins split into first-timers and returning, the registration funnel, sign-ups over time, the days-attended distribution, sessions with their on-chain status, and V4's pass sales
+  - **Islander profile** (`/islander/<wallet>`): a passport per edition with a stamp per day checked in, the registration's on-chain timeline, rank, streak and usual check-in time, and 12 achievements in three groups (showing up, consistency, timing)
   - **My island** (`/me`): find your profile by wallet, name or X handle, and remember it on this device
 
 ## The program
@@ -132,8 +132,7 @@ npx envio-cloud deployment status islanddao <commit> --watch-till-synced
 npx envio-cloud deployment endpoint islanddao <commit>   # the GraphQL URL for the dashboard
 ```
 
-Envio Cloud only sees commits pushed after the indexer is added, so the first
-deployment starts with the next push. To change the deploy branch:
+To change the deploy branch:
 `npx envio-cloud indexer settings set islanddao --branch <branch>`.
 
 ### Dashboard on GitHub Pages
@@ -150,10 +149,10 @@ The dashboard's GraphQL endpoint is hardcoded as `GRAPHQL_URL` in
 deployment with schema changes, set it to the output of
 `npx envio-cloud deployment endpoint islanddao <commit>`.
 
-Pages only serves static files, so the build writes `analytics/`, `islanders/`
+Pages only serves static files, so the build writes `analytics/`, `leaderboard/`
 and `me/` copies of the app and a `404.html` fallback for dynamic paths such as
-`/islander/<wallet>` (those load with HTTP status 404). Links from the first
-version (`/organizers`, `/me/<wallet>`) redirect to their new pages. To drop the
+`/islander/<wallet>` (those load with HTTP status 404). Links from earlier
+versions (`/organizers`, `/islanders`, `/me/<wallet>`) redirect to their new pages. To drop the
 `/envio-islanddao-demo/` prefix, add a custom domain in Settings → Pages and
 set the `DASHBOARD_BASE_PATH` variable to `/`.
 

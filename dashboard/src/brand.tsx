@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import wordmark from "./assets/islanddao-wordmark.png";
 
 export const LINKS = {
-  envioToken: "https://envio.dev/app/api-tokens",
+  envioApp: "https://envio.dev/app",
   envioDocs: "https://docs.envio.dev/docs/HyperIndex/overview",
   envio: "https://envio.dev",
   island: "https://islanddao.org/events/v5-brazil-2026",
@@ -29,56 +29,59 @@ export function CollabLockup() {
   );
 }
 
-export function TokenButton({ label = "Get a free Envio API token" }: { label?: string }) {
+/** The header's call to action: short, and clear to someone who has never heard of Envio. */
+export function TryEnvioButton() {
   return (
-    <a className="token-button" href={LINKS.envioToken} target="_blank" rel="noreferrer">
-      {label}
+    <a className="token-button" href={LINKS.envioApp} target="_blank" rel="noreferrer">
+      Try Envio free
       <span aria-hidden>→</span>
     </a>
   );
 }
 
-/** The collab banner: what powers the page, and an invite to build with Envio. */
-export function EnvioCta({ title, children }: { title: string; children?: ReactNode }) {
+const FLOW = [
+  { icon: "◎", title: "Solana program", text: "IslandDAO's registrations and daily check-ins, on-chain" },
+  { icon: "⚡", title: "Envio indexer", text: "Decodes every instruction and keeps the totals, live" },
+  { icon: "▦", title: "This dashboard", text: "One GraphQL API behind every number you see" },
+];
+
+/**
+ * The Envio box at the foot of each page: Envio's own pitch, one line tying it
+ * to what the visitor is looking at, and how this page is built.
+ */
+export function EnvioCta({ context }: { context: ReactNode }) {
   return (
     <section className="cta">
       <div className="cta-copy">
-        <span className="kicker">IslandDAO × Envio</span>
-        <h2>{title}</h2>
-        <p>
-          {children ?? (
-            <>
-              Every number on this page is indexed live from IslandDAO's check-in program on Solana with{" "}
-              <b>Envio HyperIndex</b>. HyperSync backfilled the program's whole history in minutes. Point it at
-              any program and you get a GraphQL API.
-            </>
-          )}
-        </p>
+        <span className="kicker">Powered by Envio</span>
+        <h2>Build custom blockchain APIs & analytics</h2>
+        <p className="cta-lead">Real-time, with enterprise SLAs. Production-ready for teams & AI agents.</p>
+        <p className="cta-context">{context}</p>
         <div className="cta-actions">
-          <TokenButton />
-          <a className="ghost-button" href={LINKS.envioDocs} target="_blank" rel="noreferrer">
-            Read the docs
+          <a className="token-button" href={LINKS.envioApp} target="_blank" rel="noreferrer">
+            Try Envio for free <span aria-hidden>→</span>
           </a>
           <a className="ghost-button" href={LINKS.repo} target="_blank" rel="noreferrer">
-            See this indexer's code
+            See how this was built
+          </a>
+          <a className="ghost-button" href={LINKS.envioDocs} target="_blank" rel="noreferrer">
+            Docs
           </a>
         </div>
       </div>
-      <pre className="terminal" aria-label="Get started with Envio">
-        <span className="terminal-bar">
-          <i />
-          <i />
-          <i />
-        </span>
-        <code>
-          <span className="t-muted">$</span> pnpx envio init svm{"\n"}
-          <span className="t-muted">? Name your indexer</span> islanddao{"\n"}
-          <span className="t-ok">✓</span> Indexer ready{"\n"}
-          <span className="t-muted">$</span> pnpm dev{"\n"}
-          <span className="t-ok">✓</span> Synced 1,967 instructions{"\n"}
-          <span className="t-accent">→ GraphQL on localhost:8080</span>
-        </code>
-      </pre>
+      <ol className="flow" aria-label="How this page works">
+        {FLOW.map((f) => (
+          <li key={f.title}>
+            <span className="flow-icon" aria-hidden>
+              {f.icon}
+            </span>
+            <span>
+              <b>{f.title}</b>
+              <small>{f.text}</small>
+            </span>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }

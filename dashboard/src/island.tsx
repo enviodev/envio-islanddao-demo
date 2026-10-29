@@ -85,7 +85,7 @@ export function IslandCalendar({
               · {h ? `${num(h.checkIns)} check-ins, ${num(h.firstTimers)} first-timers` : hover > today ? "coming up" : "no check-ins"}
             </>
           ) : (
-            "Hover a day for details"
+            "Tap or hover a day for details"
           )}
         </span>
         <span className="scale" aria-hidden>
