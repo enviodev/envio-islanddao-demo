@@ -58,7 +58,7 @@ export function MyIsland() {
         </Section>
       )}
 
-      <EnvioCta context="Profiles are read straight from Solana by an Envio indexer. No sign-up or wallet connection needed to look yourself up." />
+      <EnvioCta context="Profiles are read straight from Solana by an Envio indexer." />
     </>
   );
 }

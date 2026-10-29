@@ -749,7 +749,7 @@ a.feed-name {
 
 .cta {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 28px;
   align-items: center;
   margin: 32px 0 16px;
@@ -793,68 +793,138 @@ a.feed-name {
   border-color: var(--envio);
   color: var(--envio);
 }
-.cta .cta-lead {
-  font-size: 17px;
-  color: #ededed;
-  margin-bottom: 8px;
-}
-.cta-context {
-  font-size: 14px;
-}
-.flow {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-  counter-reset: flow;
-}
-.flow li {
-  position: relative;
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  padding: 14px 16px;
-  border-radius: 12px;
+.code-window {
+  min-width: 0;
   background: var(--envio-card);
   border: 1px solid rgba(237, 237, 237, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
 }
-/* A connector between the steps. */
-.flow li + li::before {
-  content: "";
-  position: absolute;
-  left: 34px;
-  top: -11px;
-  width: 2px;
-  height: 10px;
-  background: linear-gradient(var(--envio), var(--envio-2));
+.code-tabs {
+  display: flex;
+  border-bottom: 1px solid rgba(237, 237, 237, 0.1);
+  overflow-x: auto;
 }
-.flow-icon {
-  flex: none;
-  width: 38px;
-  height: 38px;
+.code-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: #8a8a8a;
+  font: 500 12px var(--envio-mono);
+  padding: 10px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.code-tabs button:hover {
+  color: #ededed;
+}
+.code-tabs button.active {
+  color: #ededed;
+  border-bottom-color: var(--envio);
+}
+.code-step {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
   display: grid;
   place-content: center;
-  border-radius: 10px;
-  font-size: 18px;
-  color: #000;
-  background: linear-gradient(135deg, var(--envio), var(--envio-2));
+  font-size: 10px;
+  font-weight: 700;
+  background: #222;
+  color: #bbb;
 }
-.flow li:first-child .flow-icon {
-  background: linear-gradient(135deg, #9945ff, #14f195);
+.code-tabs button.active .code-step {
+  background: linear-gradient(135deg, var(--envio), var(--envio-2));
+  color: #000;
+}
+.cta .code-note {
+  margin: 12px 16px 0;
+  font-size: 13px;
+  color: #9a9a9a;
+}
+.code {
+  margin: 0;
+  padding: 12px 16px 16px;
+  font: 12.5px/1.7 var(--envio-mono);
+  color: #ededed;
+  overflow-x: auto;
+  /* Tall enough for the longest snippet, so switching tabs doesn't jump. */
+  min-height: 230px;
+}
+.t-str {
+  color: #fdd700;
+}
+.t-key {
+  color: #7dd3fc;
+}
+.t-kw {
+  color: var(--envio);
+}
+.t-num {
+  color: #c4b5fd;
+}
+.t-muted {
+  color: #7a7a7a;
+}
+.code-start {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid rgba(237, 237, 237, 0.1);
+  font: 13px var(--envio-mono);
+  color: #4ade80;
+}
+.code-start code {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- Envio bar (above the header) ---------- */
+
+.envio-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 0 -16px;
+  padding: 8px 16px;
+  border: 0;
+  font-size: 13px;
+  color: #d4d4d4;
+  background: linear-gradient(90deg, rgba(255, 130, 103, 0.14), rgba(253, 215, 0, 0.08)), #000;
+  border-bottom: 1px solid rgba(255, 130, 103, 0.25);
+}
+.envio-bar:hover {
   color: #fff;
 }
-.flow li:last-child .flow-icon {
-  background: var(--mint);
+.envio-bar-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
-.flow b {
-  display: block;
-  color: #ededed;
-  font-size: 15px;
+.envio-bar b {
+  color: #fff;
 }
-.flow small {
-  color: #9a9a9a;
-  font-size: 13px;
+.envio-bar-cta {
+  flex: none;
+  font-weight: 700;
+  color: var(--envio);
+  white-space: nowrap;
+}
+.envio-bar:hover .envio-bar-cta {
+  color: var(--envio-2);
+}
+
+.masthead-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 @media (max-width: 800px) {
   .cta {
@@ -1913,5 +1983,19 @@ button.chip.active {
   .stats-3 .stat-label {
     font-size: 9px;
     letter-spacing: 0.06em;
+  }
+}
+
+@media (max-width: 560px) {
+  .envio-bar {
+    font-size: 12px;
+    gap: 10px;
+  }
+  .envio-bar-bolt,
+  .code-step {
+    display: none;
+  }
+  .code-tabs button {
+    padding: 10px 11px;
   }
 }

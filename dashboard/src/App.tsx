@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { EVENTS_QUERY, usePolling, type MainEvent } from "./api";
-import { CollabLockup, LINKS, TryEnvioButton } from "./brand";
+import { CollabLockup, EnvioBar, LINKS } from "./brand";
 import { editionName, isLive } from "./format";
 import { editionSlug, navigate, useRoute, type EditionView, type Route } from "./router";
 import { Link } from "./ui";
@@ -80,12 +80,11 @@ export function App() {
 
   return (
     <div className="page">
+      <EnvioBar />
       <header className="masthead">
         <div className="masthead-row">
           <CollabLockup />
-          <TryEnvioButton />
-        </div>
-        <nav className="masthead-row">
+          <nav className="masthead-nav">
           <div className="views" aria-label="Views">
             {VIEWS.map((v) => (
               <Link key={v.id} to={routeFor(v.id)} current={activeTab === v.id} className={activeTab === v.id ? "view active" : "view"}>
@@ -109,7 +108,8 @@ export function App() {
               ))}
             </div>
           )}
-        </nav>
+          </nav>
+        </div>
       </header>
 
       <main>

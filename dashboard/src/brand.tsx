@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import wordmark from "./assets/islanddao-wordmark.png";
 
 export const LINKS = {
@@ -29,59 +29,153 @@ export function CollabLockup() {
   );
 }
 
-/** The header's call to action: short, and clear to someone who has never heard of Envio. */
-export function TryEnvioButton() {
+/**
+ * A slim strip above the header: what Envio is, in one line, and where to
+ * start. It scrolls away; the header below stays.
+ */
+export function EnvioBar() {
   return (
-    <a className="token-button" href={LINKS.envioApp} target="_blank" rel="noreferrer">
-      Try Envio free
-      <span aria-hidden>→</span>
+    <a className="envio-bar" href={LINKS.envioApp} target="_blank" rel="noreferrer">
+      <span className="envio-bar-text">
+        <span className="envio-bar-bolt" aria-hidden>
+          ⚡
+        </span>
+        <span className="label-long">
+          Building on Solana? Turn your program into a live API with <b>Envio</b>.
+        </span>
+        <span className="label-short">
+          <b>Envio</b> · your program as a live API
+        </span>
+      </span>
+      <span className="envio-bar-cta">
+        Start free <span aria-hidden>→</span>
+      </span>
     </a>
   );
 }
 
-const FLOW = [
-  { icon: "◎", title: "Solana program", text: "IslandDAO's registrations and daily check-ins, on-chain" },
-  { icon: "⚡", title: "Envio indexer", text: "Decodes every instruction and keeps the totals, live" },
-  { icon: "▦", title: "This dashboard", text: "One GraphQL API behind every number you see" },
+/** Trimmed from this repo: the real config, handler and query behind the check-ins. */
+const SNIPPETS = [
+  {
+    file: "config.yaml",
+    note: "Point Envio at the program and name its instructions.",
+    code: `programs:
+  - name: IslandEvents
+    program_id: tabiZjsKYe5rs8fMM7FonZaw3pVBpiWMosB25eN6RrU
+    instructions:
+      - name: checkIn
+        discriminator: "0x10"
+        accounts: [checkInAuthority, attendee, attendance, event]`,
+  },
+  {
+    file: "handler.ts",
+    note: "Turn each instruction into rows you can query.",
+    code: `indexer.onInstruction(
+  { program: "IslandEvents", instruction: "checkIn" },
+  async ({ instruction, context }) => {
+    const { attendee, event } = instruction.accounts;
+    context.CheckIn.set({
+      id: instruction.transaction.signature,
+      event_id: event.address,
+      user_id: attendee.address,
+      timestamp: instruction.block.time,
+    });
+  },
+);`,
+  },
+  {
+    file: "query.graphql",
+    note: "Query it live. This page polls queries like this one.",
+    code: `query LatestCheckIns {
+  CheckIn(order_by: { timestamp: desc }, limit: 5) {
+    timestamp
+    user { displayName xHandle }
+  }
+}`,
+  },
 ];
 
+const TOKEN = /("[^"]*"|\/\/.*$|#.*$|\b(?:const|async|await|query)\b|\b[A-Za-z_]+(?=:)|\b\d+\b)/gm;
+
+/** Just enough highlighting for three short snippets: strings, keys, keywords, numbers. */
+function highlight(code: string) {
+  const parts: ReactNode[] = [];
+  let last = 0;
+  for (const m of code.matchAll(TOKEN)) {
+    const t = m[0];
+    if (m.index! > last) parts.push(code.slice(last, m.index));
+    const cls = t.startsWith('"') ? "t-str" : /^(\/\/|#)/.test(t) ? "t-muted" : /^\d/.test(t) ? "t-num" : /^(const|async|await|query)$/.test(t) ? "t-kw" : "t-key";
+    parts.push(
+      <span key={m.index} className={cls}>
+        {t}
+      </span>,
+    );
+    last = m.index! + t.length;
+  }
+  parts.push(code.slice(last));
+  return parts;
+}
+
+function CodeWindow() {
+  const [tab, setTab] = useState(0);
+  const [copied, setCopied] = useState(false);
+  const snippet = SNIPPETS[tab];
+  const command = "pnpx envio init svm";
+  return (
+    <div className="code-window">
+      <div className="code-tabs" role="tablist" aria-label="How this indexer is built">
+        {SNIPPETS.map((sn, i) => (
+          <button key={sn.file} role="tab" aria-selected={i === tab} className={i === tab ? "active" : ""} onClick={() => setTab(i)}>
+            <span className="code-step">{i + 1}</span>
+            {sn.file}
+          </button>
+        ))}
+      </div>
+      <p className="code-note">{snippet.note}</p>
+      <pre className="code" role="tabpanel">
+        <code>{highlight(snippet.code)}</code>
+      </pre>
+      <div className="code-start">
+        <span className="t-muted">$</span> <code>{command}</code>
+        <button
+          className="copy"
+          onClick={() =>
+            navigator.clipboard?.writeText(command).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            })
+          }
+        >
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /**
- * The Envio box at the foot of each page: Envio's own pitch, one line tying it
- * to what the visitor is looking at, and how this page is built.
+ * The quiet box at the foot of each page: what powers it, in one line, and
+ * the code behind it. The pitch itself lives in the bar at the top.
  */
 export function EnvioCta({ context }: { context: ReactNode }) {
   return (
     <section className="cta">
       <div className="cta-copy">
         <span className="kicker">Powered by Envio</span>
-        <h2>Build custom blockchain APIs & analytics</h2>
-        <p className="cta-lead">Real-time, with enterprise SLAs. Production-ready for teams & AI agents.</p>
-        <p className="cta-context">{context}</p>
+        <h2>How this page is built</h2>
+        <p>
+          {context} Here's the gist for check-ins: a config, a handler and a query.
+        </p>
         <div className="cta-actions">
           <a className="token-button" href={LINKS.envioApp} target="_blank" rel="noreferrer">
-            Try Envio for free <span aria-hidden>→</span>
+            Start free <span aria-hidden>→</span>
           </a>
           <a className="ghost-button" href={LINKS.repo} target="_blank" rel="noreferrer">
-            See how this was built
-          </a>
-          <a className="ghost-button" href={LINKS.envioDocs} target="_blank" rel="noreferrer">
-            Docs
+            See this demo's code
           </a>
         </div>
       </div>
-      <ol className="flow" aria-label="How this page works">
-        {FLOW.map((f) => (
-          <li key={f.title}>
-            <span className="flow-icon" aria-hidden>
-              {f.icon}
-            </span>
-            <span>
-              <b>{f.title}</b>
-              <small>{f.text}</small>
-            </span>
-          </li>
-        ))}
-      </ol>
+      <CodeWindow />
     </section>
   );
 }
