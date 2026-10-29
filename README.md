@@ -5,10 +5,12 @@ behind [IslandDAO](https://islanddao.org) event check-ins, plus a live dashboard
 built on its GraphQL API.
 
 - `indexer/`: HyperIndex project (`ecosystem: svm`), scaffolded with `pnpx envio init svm`
-- `dashboard/`: Vite + React dashboard, branded IslandDAO × Envio, polling the indexer every 5 seconds. It has three views:
+- `dashboard/`: Vite + React dashboard, branded IslandDAO × Envio, polling the indexer every 5 seconds. Every page has its own URL, and every face or name opens that islander's profile:
   - **Overview** (`/`, or `/v4` for an earlier edition): the showcase for everyone. Live islander count, the island calendar, the latest check-ins, regulars, and a wall of every attendee
-  - **Organizers** (`/organizers`, `/v4/organizers`): KPIs, daily check-ins split into first-timers and returning, the registration funnel, the days-attended distribution, sessions and pass sales
-  - **My island** (`/me/<wallet>`): an attendee's island passport, with a stamp per day checked in, their leaderboard rank, islander number, longest streak and usual check-in time
+  - **Islanders** (`/islanders`, `/v4/islanders`): everyone at the edition, searchable by name, X handle or wallet, sortable by days, arrival or sign-up, filterable by status
+  - **Event analytics** (`/analytics`, `/v4/analytics`): KPIs, daily check-ins split into first-timers and returning, the registration funnel, sign-ups over time, the days-attended distribution, sessions with their on-chain status, pass sales and buyers
+  - **Islander profile** (`/islander/<wallet>`): a passport per edition with a stamp per day checked in, the registration's on-chain timeline, rank, streaks, usual check-in time, 12 achievements, and the passes they bought with what they spent
+  - **My island** (`/me`): find your profile by wallet, name or X handle, and remember it on this device
 
 ## The program
 
@@ -24,36 +26,61 @@ On-chain traffic at slot 462,250,000: 1,967 instructions across 36 discriminator
 
 | Byte | Instruction | Calls | What it does |
 |---|---|---|---|
-| `0x00` | `createEvent` | 55 | Event or session: name, description, image, location, venue, lat/lng (×1e6), category, start/end |
+| `0x00` | `createEvent` | 55 | Event or session: name, description, image, location, venue, lat/lng (×1e6), category, start/end, UTC offset |
+| `0x01` | `updateEvent` | 60 | Edits any of those fields, plus the event's status (scheduled, completed, cancelled) |
+| `0x30` | `setEventImage` | 32 | Replaces the event's image |
+| `0x43` | `setRequiresApproval` | 1 | Turns on the approval step (V5) |
 | `0x02` | `addSession` | 50 | Attaches a session (talk, demo, social) to a main event |
 | `0x04` | `register` | 472 | Attendee opens a registration PDA for an event |
 | `0x41` | `approveRegistration` | 241 | Organizer approves (V5 uses approvals, V4 did not) |
 | `0x42` | `rejectRegistration` | 5 | Organizer rejects |
 | `0x07` | `cancelRegistration` | 13 | Attendee withdraws. The PDA closes and comes back on re-register |
-| `0x10` | `checkIn` | 908 | Co-signed by the venue's check-in key and the attendee. One per attendee per day |
+| `0x10` | `checkIn` | 957 | Co-signed by the venue's check-in key and the attendee. One per attendee per event day |
+| `0x05` | `eventCheckIn` | 3 | A one-off check-in on the registration itself, with a timestamp. Used on V4's second day |
 | `0x1c` / `0x1d` | `createProfile` / `updateProfile` | 48 / 5 | Display name, bio, avatar, website |
 | `0x36` | `linkSocial` | 15 | X handle, co-signed by a verifier |
 | `0x20` | `createOrganization` | 1 | The IslandDAO org account |
 | `0x27` / `0x2a` | `createTicketTier` / `purchasePass` | 4 / 12 | V4 weekly passes, Metaplex Core assets paid in USDC |
 
-The other low-volume instructions (event edits, image updates, roles and admin
-setup) aren't indexed. Two fields are inferred rather than documented: the
-`category` labels (from how the V4 calendar used them) and a 20–21-byte tail on
-`createEvent` that stays opaque.
+The other low-volume instructions (roles, ticket configuration and admin setup)
+aren't indexed. A few things are inferred rather than documented: the
+`category` labels (from how the V4 calendar used them), the status values (3 is
+set right after a session ends, 4 on duplicates and tests), and most of the
+20–21-byte tail on `createEvent` (its first byte is the UTC offset in
+quarter-hours). `updateEvent` is a run of Borsh options whose list grew between
+program versions, so its handler decodes the raw bytes; the field order was
+matched against all 60 calls.
+
+### Matching the program's own accounts
+
+The indexer is checked against the accounts the program stores, not only the
+instructions it receives. At slot 462,829,506 every one of the 200 attendance
+accounts (a day counter and a 256-bit day bitmap per attendee) matches the
+indexed check-ins day for day, and every event's start, end, status and
+category, and every registration's status, matches its account.
+
+Two details made that work:
+
+- **Days are the program's, not UTC dates.** Day N of an event is N whole days
+  after its start time, and a check-in before the start counts as day 1. V5
+  starts at local midnight in Florianópolis (UTC-3), and nine islanders checked
+  in on the Sunday before; they count toward Oct 19. V4's days run from 09:00
+  to 09:00 in Koh Samui. Dates are shown in the event's local time.
+- **Events get edited.** V5's dates were moved after it was created (its start
+  from 20:00 to midnight local time, its end to Nov 11), V4 was renamed and its
+  sessions rescheduled and cancelled. `updateEvent` keeps all of that current.
 
 ### What the data shows
 
 | | IslandDAO V4, Koh Samui | IslandDAO V5, Florianópolis (live) |
 |---|---|---|
-| Dates | Jun 3 – 28, 2026 | Oct 19 – Nov 12, 2026 |
-| Registrations | 215 | 245 (237 approved, 5 rejected) |
-| Unique attendees | 100 | 98 so far |
-| Check-ins | 548 over 17 days | 360 over 8 days, still growing |
+| Dates (local) | Jun 3 – 28, 2026 | Oct 19 – Nov 11, 2026 |
+| Registrations | 215, all confirmed on sign-up | 245 (237 approved, 5 rejected, 2 cancelled) |
+| Unique attendees | 100 | 100 so far |
+| Check-ins | 548 over 17 days | 409 over 8 days, still growing |
 | Extras | 50 sessions, 12 weekly passes ($1,945 USDC) | approval flow |
 
-Check-ins only happen on weekdays, which matches co-working days. The attendance
-account the program keeps per (event, attendee) holds a day counter and a day
-bitmap, and the indexer's own `dayNumber` matches it.
+Check-ins mostly happen on weekdays, which matches co-working days.
 
 ## Running it
 
@@ -75,9 +102,9 @@ pnpm dev
 
 A full backfill from the program's first slot takes a few minutes. After that
 the indexer follows the chain head, and the V5 tab updates as check-ins land.
-The dashboard proxies `/v1/graphql` to `localhost:8080`. Set
-`GRAPHQL_PROXY_TARGET`, or `VITE_GRAPHQL_URL` for a deployed indexer, to point
-it elsewhere.
+The dashboard reads the Envio Cloud deployment set in `GRAPHQL_URL` in
+`dashboard/src/api.ts`. To try it against your local indexer, change that line
+to `http://localhost:8080/v1/graphql`.
 
 ```bash
 cd indexer && pnpm test   # simulated lifecycle test + a HyperSync replay pinned to slot 462,250,000
@@ -115,17 +142,18 @@ deployment starts with the next push. To change the deploy branch:
 push to `main` that touches it.
 
 1. Settings → Pages → Source: **GitHub Actions**.
-2. Settings → Secrets and variables → Actions → **Variables**: set
-   `ENVIO_GRAPHQL_URL` to the endpoint from the step above.
-3. Run the "Dashboard (GitHub Pages)" workflow, or push to `main`. The site is
+2. Run the "Dashboard (GitHub Pages)" workflow, or push to `main`. The site is
    served at `https://enviodev.github.io/envio-islanddao-demo/`.
 
-Until the variable is set, the site deploys with a "not connected yet" notice
-instead of data.
+The dashboard's GraphQL endpoint is hardcoded as `GRAPHQL_URL` in
+`dashboard/src/api.ts`. Each Envio Cloud deployment has its own URL, so after a
+deployment with schema changes, set it to the output of
+`npx envio-cloud deployment endpoint islanddao <commit>`.
 
-Pages only serves static files, so the build writes `organizers/` and `me/`
-copies of the app and a `404.html` fallback for dynamic paths such as
-`/me/<wallet>` (those load with HTTP status 404). To drop the
+Pages only serves static files, so the build writes `analytics/`, `islanders/`
+and `me/` copies of the app and a `404.html` fallback for dynamic paths such as
+`/islander/<wallet>` (those load with HTTP status 404). Links from the first
+version (`/organizers`, `/me/<wallet>`) redirect to their new pages. To drop the
 `/envio-islanddao-demo/` prefix, add a custom domain in Settings → Pages and
 set the `DASHBOARD_BASE_PATH` variable to `/`.
 
@@ -138,7 +166,9 @@ set the `DASHBOARD_BASE_PATH` variable to `/`.
 - **HyperSync as the source.** It backfills the program's whole history in
   minutes, then follows the head.
 - **Entity aggregation in handlers.** Status counters, unique attendees, daily
-  buckets and per-attendee day numbers are maintained in the handlers, so the
-  dashboard needs no aggregate queries.
+  buckets, per-attendee day numbers and pass spend are maintained in the
+  handlers, so the dashboard needs no aggregate queries.
+- **Raw instruction data when Borsh args don't fit.** `updateEvent` selects the
+  instruction's `data` and decodes its options by hand.
 - **Tests on both sides.** Simulated instructions cover the logic, and a pinned
   HyperSync replay checks the reverse-engineered layouts against real data.

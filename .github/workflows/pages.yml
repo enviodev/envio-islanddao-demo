@@ -1,11 +1,7 @@
 # Builds the dashboard and publishes it to GitHub Pages.
 #
-# One-time setup:
-#   1. Settings > Pages > Build and deployment > Source: "GitHub Actions".
-#   2. Settings > Secrets and variables > Actions > Variables: add ENVIO_GRAPHQL_URL
-#      with the indexer's Envio Cloud GraphQL endpoint
-#      (`envio-cloud deployment endpoint <indexer> <commit>`).
-# Without the variable the site still deploys and shows a "not connected yet" notice.
+# One-time setup: Settings > Pages > Build and deployment > Source: "GitHub Actions".
+# The indexer's GraphQL endpoint is set in dashboard/src/api.ts.
 
 name: Dashboard (GitHub Pages)
 
@@ -53,7 +49,6 @@ jobs:
         env:
           # "/" when the site has a custom domain, otherwise the project path.
           BASE_PATH: ${{ vars.DASHBOARD_BASE_PATH || format('/{0}/', github.event.repository.name) }}
-          VITE_GRAPHQL_URL: ${{ vars.ENVIO_GRAPHQL_URL }}
 
       - uses: actions/upload-pages-artifact@v3
         with:
