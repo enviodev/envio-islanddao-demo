@@ -114,10 +114,18 @@ h2 {
   color: var(--mint);
 }
 
+/* Bars span the whole window; their content lines up with the page column. */
+.shell,
 .page {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 0 16px 40px;
+  padding: 0 16px;
+}
+.page {
+  display: block;
+  padding-bottom: 8px;
+}
+body {
   overflow-x: clip;
 }
 
@@ -130,8 +138,6 @@ h2 {
   background: rgba(4, 14, 14, 0.82);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
-  margin: 0 -16px;
-  padding: 0 16px;
 }
 .masthead-row {
   display: flex;
@@ -890,7 +896,6 @@ a.feed-name {
   align-items: center;
   justify-content: center;
   gap: 14px;
-  margin: 0 -16px;
   padding: 8px 16px;
   border: 0;
   font-size: 13px;
@@ -1906,15 +1911,17 @@ button.chip.active {
 /* ---------- Footer ---------- */
 
 .site-footer {
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+  padding: 20px 0 40px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.site-footer-inner {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  border-top: 1px solid var(--border);
-  padding-top: 20px;
-  margin-top: 24px;
-  font-size: 13px;
-  color: var(--text-2);
 }
 
 /* Tabs are links (clean, shareable URLs), so undo the global link hover. */

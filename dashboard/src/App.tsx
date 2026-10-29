@@ -79,10 +79,10 @@ export function App() {
   };
 
   return (
-    <div className="page">
+    <>
       <EnvioBar />
       <header className="masthead">
-        <div className="masthead-row">
+        <div className="masthead-row shell">
           <CollabLockup />
           <nav className="masthead-nav">
           <div className="views" aria-label="Views">
@@ -112,7 +112,7 @@ export function App() {
         </div>
       </header>
 
-      <main>
+      <main className="page">
         {error && !data && <p className="error">Could not reach the indexer GraphQL API: {error}</p>}
         {route.view === "overview" && event && <Overview key={event.id} eventId={event.id} edition={current} now={now} />}
         {route.view === "analytics" && event && <Analytics key={event.id} eventId={event.id} edition={current} now={now} />}
@@ -124,31 +124,33 @@ export function App() {
       </main>
 
       <footer className="site-footer">
-        <span>
-          A collaboration between{" "}
-          <a href={LINKS.island} target="_blank" rel="noreferrer">
-            IslandDAO
-          </a>{" "}
-          and{" "}
-          <a href={LINKS.envio} target="_blank" rel="noreferrer">
-            Envio
-          </a>
-          . Live data from Solana, indexed by Envio.
-        </span>
-        <span>
-          <a href={LINKS.envioApp} target="_blank" rel="noreferrer">
-            Try Envio free
-          </a>{" "}
-          ·{" "}
-          <a href={LINKS.envioDocs} target="_blank" rel="noreferrer">
-            Docs
-          </a>{" "}
-          ·{" "}
-          <a href={LINKS.repo} target="_blank" rel="noreferrer">
-            Source
-          </a>
-        </span>
+        <div className="shell site-footer-inner">
+          <span>
+            A collaboration between{" "}
+            <a href={LINKS.island} target="_blank" rel="noreferrer">
+              IslandDAO
+            </a>{" "}
+            and{" "}
+            <a href={LINKS.envio} target="_blank" rel="noreferrer">
+              Envio
+            </a>
+            . Live data from Solana, indexed by Envio.
+          </span>
+          <span>
+            <a href={LINKS.envioApp} target="_blank" rel="noreferrer">
+              Try Envio free
+            </a>{" "}
+            ·{" "}
+            <a href={LINKS.envioDocs} target="_blank" rel="noreferrer">
+              Docs
+            </a>{" "}
+            ·{" "}
+            <a href={LINKS.repo} target="_blank" rel="noreferrer">
+              Source
+            </a>
+          </span>
+        </div>
       </footer>
-    </div>
+    </>
   );
 }

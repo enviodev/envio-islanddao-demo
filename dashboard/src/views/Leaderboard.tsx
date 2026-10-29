@@ -126,8 +126,7 @@ export function Leaderboard({ eventId, now }: { eventId: string; now: number }) 
         <div className="kicker">Leaderboard · {event.name}</div>
         <h1>Who showed up the most</h1>
         <p className="muted">
-          Ranked by days checked in; ties go to whoever checked in first. {plural(islandDays, "island day")} so far, an island day being
-          any day someone checked in.
+          Ranked by days checked in, out of {plural(islandDays, "island day")} so far. Ties go to whoever arrived first.
         </p>
       </section>
 

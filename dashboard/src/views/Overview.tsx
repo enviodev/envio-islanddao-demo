@@ -98,7 +98,7 @@ export function Overview({ eventId, edition, now }: { eventId: string; edition?:
                       {userName(c.user)}
                     </Link>
                     <span className="muted">
-                      {c.dayNumber === 1 ? "first day on the island 🌴" : `${ordinal(c.dayNumber)} day on the island`} · event day {c.eventDay}
+                      {c.dayNumber === 1 ? "first day on the island 🌴" : `${ordinal(c.dayNumber)} day on the island`}
                     </span>
                   </span>
                   <a className="feed-time" href={solscanTx(c.txSignature)} target="_blank" rel="noreferrer" title="View the transaction on Solscan">

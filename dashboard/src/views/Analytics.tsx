@@ -137,7 +137,7 @@ export function Analytics({ eventId, edition, now }: { eventId: string; edition?
         <div className="span-2">
           <Section
             title="Daily check-ins"
-            subtitle="One co-signed check-in per attendee per event day, bucketed the way the program counts days."
+            subtitle="Each attendee can check in once per event day."
             aside={
               <Legend
                 items={[
@@ -151,7 +151,7 @@ export function Analytics({ eventId, edition, now }: { eventId: string; edition?
           </Section>
         </div>
 
-        <Section title="Registration funnel" subtitle="From sign-up to showing up. Hover a step for its definition.">
+        <Section title="Registration funnel" subtitle="From sign-up to showing up, as a share of all registrations.">
           <Funnel steps={funnel} />
         </Section>
 

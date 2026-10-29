@@ -7,6 +7,7 @@ import {
   dateTime,
   editionName,
   num,
+  ordinal,
   plural,
   shortAddress,
   shortDate,
@@ -88,7 +89,7 @@ function Timeline({ r, arrival }: { r: ProfileRegistration; arrival?: number }) 
   if (r.arrivedAt) timed.push({ label: "Checked in at the event desk", at: r.arrivedAt });
   if (r.firstCheckInAt) timed.push({ label: "First daily check-in", at: r.firstCheckInAt, note: arrival ? `islander #${arrival} to arrive` : undefined });
   const last = r.checkIns[r.checkIns.length - 1];
-  if (last && r.checkIns.length > 1) timed.push({ label: `Latest check-in, day ${r.checkIns.length}`, at: last.timestamp });
+  if (last && r.checkIns.length > 1) timed.push({ label: `Latest check-in, ${ordinal(r.checkIns.length)} day`, at: last.timestamp });
   steps.push(...timed.sort((a, b) => a.at - b.at));
   return (
     <ol className="timeline">
@@ -117,7 +118,6 @@ function EditionStory({ user, r }: { user: Profile; r: ProfileRegistration }) {
     <Section
       title={r.event.name}
       subtitle={`${r.event.location} · times in ${tzLabel(tz)}`}
-      aside={<StatusBadge status={r.status} />}
     >
       <div className="story">
         <div className="story-side">
